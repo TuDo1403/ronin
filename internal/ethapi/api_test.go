@@ -20,10 +20,10 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -54,6 +54,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/sha3"
 )
 
 func testTransactionMarshal(t *testing.T, tests []txData, config *params.ChainConfig) {
@@ -2219,72 +2220,102 @@ func hex2Bytes(str string) *hexutil.Bytes {
 	return &rpcBytes
 }
 
-func TestHeader4844MarshalJson(t *testing.T) {
-	header := types.Header{
-		Number:     big.NewInt(100),
-		Difficulty: big.NewInt(7),
-	}
-	data, err := json.Marshal(RPCMarshalHeader(&header))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expect := `{"difficulty":"0x7","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x7638fef16ccc17d30038b807c09ca0f0bb47a6132d81253799448855504ed217","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","size":"0x239","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000"}`
-	if string(data) != expect {
-		t.Fatalf("Header mismatches, expect: %s\n got: %s", expect, string(data))
-	}
-
-	blobGasUsed := uint64(1 << 17)
-	excessBlobGas := 2 * blobGasUsed
-	header.BlobGasUsed = &blobGasUsed
-	header.ExcessBlobGas = &excessBlobGas
-
-	data, err = json.Marshal(RPCMarshalHeader(&header))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expect = `{"blobGasUsed":"0x20000","difficulty":"0x7","excessBlobGas":"0x40000","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0xd2bae9d64fe00db8bc637990b38432d8281604d1caf81bfe7c0b46ecc1dfd1ca","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","sha3Uncles":"0x0000000000000000000000000000000000000000000000000000000000000000","size":"0x239","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactionsRoot":"0x0000000000000000000000000000000000000000000000000000000000000000"}`
-	if string(data) != expect {
-		t.Fatalf("Header mismatches, expect: %s\n got: %s", expect, string(data))
-	}
+// testHasher is the helper tool for transaction/receipt list hashing.
+// The original hasher is trie, in order to get rid of import cycle,
+// use the testing hasher instead.
+type testHasher struct {
+	hasher hash.Hash
 }
 
-func argsFromTransaction(tx *types.Transaction, from common.Address) TransactionArgs {
+func newHasher() *testHasher {
+	return &testHasher{hasher: sha3.NewLegacyKeccak256()}
+}
+
+func (h *testHasher) Reset() {
+	h.hasher.Reset()
+}
+
+func (h *testHasher) Update(key, val []byte) error {
+	h.hasher.Write(key)
+	h.hasher.Write(val)
+	return nil
+}
+
+func (h *testHasher) Hash() common.Hash {
+	return common.BytesToHash(h.hasher.Sum(nil))
+}
+
+func TestRPCMarshalBlock(t *testing.T) {
+	t.Parallel()
 	var (
-		gas        = tx.Gas()
-		nonce      = tx.Nonce()
-		input      = tx.Data()
-		accessList *types.AccessList
+		txs []*types.Transaction
+		to  = common.BytesToAddress([]byte{0x11})
 	)
-	if acl := tx.AccessList(); acl != nil {
-		accessList = &acl
+	for i := uint64(1); i <= 4; i++ {
+		var tx *types.Transaction
+		if i%2 == 0 {
+			tx = types.NewTx(&types.LegacyTx{
+				Nonce:    i,
+				GasPrice: big.NewInt(11111),
+				Gas:      1111,
+				To:       &to,
+				Value:    big.NewInt(111),
+				Data:     []byte{0x11, 0x11, 0x11},
+			})
+		} else {
+			tx = types.NewTx(&types.AccessListTx{
+				ChainID:  big.NewInt(1337),
+				Nonce:    i,
+				GasPrice: big.NewInt(11111),
+				Gas:      1111,
+				To:       &to,
+				Value:    big.NewInt(111),
+				Data:     []byte{0x11, 0x11, 0x11},
+			})
+		}
+		txs = append(txs, tx)
 	}
-	return TransactionArgs{
-		From:                 &from,
-		To:                   tx.To(),
-		Gas:                  (*hexutil.Uint64)(&gas),
-		MaxFeePerGas:         (*hexutil.Big)(tx.GasFeeCap()),
-		MaxPriorityFeePerGas: (*hexutil.Big)(tx.GasTipCap()),
-		Value:                (*hexutil.Big)(tx.Value()),
-		Nonce:                (*hexutil.Uint64)(&nonce),
-		Input:                (*hexutil.Bytes)(&input),
-		ChainID:              (*hexutil.Big)(tx.ChainId()),
-		AccessList:           accessList,
-		BlobFeeCap:           (*hexutil.Big)(tx.BlobGasFeeCap()),
-		BlobHashes:           tx.BlobHashes(),
+	block := types.NewBlock(&types.Header{Number: big.NewInt(100)}, txs, nil, nil, newHasher())
+
+	testSuite := []struct {
+		inclTx bool
+		fullTx bool
+		want   string
+	}{
+		// without txs
+		{
+			inclTx: false,
+			fullTx: false,
+			want:   `{"difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x296","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactionsRoot":"0x661a9febcfa8f1890af549b874faf9fa274aede26ef489d9db0b25daa569450e","uncles":[]}`,
+		},
+		// only tx hashes
+		{
+			inclTx: true,
+			fullTx: false,
+			want:   `{"difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x296","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactions":["0x7d39df979e34172322c64983a9ad48302c2b889e55bda35324afecf043a77605","0x9bba4c34e57c875ff57ac8d172805a26ae912006985395dc1bdf8f44140a7bf4","0x98909ea1ff040da6be56bc4231d484de1414b3c1dac372d69293a4beb9032cb5","0x12e1f81207b40c3bdcc13c0ee18f5f86af6d31754d57a0ea1b0d4cfef21abef1"],"transactionsRoot":"0x661a9febcfa8f1890af549b874faf9fa274aede26ef489d9db0b25daa569450e","uncles":[]}`,
+		},
+		// full tx details
+		{
+			inclTx: true,
+			fullTx: true,
+			want:   `{"difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x296","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactions":[{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x7d39df979e34172322c64983a9ad48302c2b889e55bda35324afecf043a77605","input":"0x111111","nonce":"0x1","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x0","value":"0x6f","type":"0x1","accessList":[],"chainId":"0x539","v":"0x0","r":"0x0","s":"0x0"},{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x9bba4c34e57c875ff57ac8d172805a26ae912006985395dc1bdf8f44140a7bf4","input":"0x111111","nonce":"0x2","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x1","value":"0x6f","type":"0x0","chainId":"0x7fffffffffffffee","v":"0x0","r":"0x0","s":"0x0"},{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x98909ea1ff040da6be56bc4231d484de1414b3c1dac372d69293a4beb9032cb5","input":"0x111111","nonce":"0x3","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x2","value":"0x6f","type":"0x1","accessList":[],"chainId":"0x539","v":"0x0","r":"0x0","s":"0x0"},{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x12e1f81207b40c3bdcc13c0ee18f5f86af6d31754d57a0ea1b0d4cfef21abef1","input":"0x111111","nonce":"0x4","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x3","value":"0x6f","type":"0x0","chainId":"0x7fffffffffffffee","v":"0x0","r":"0x0","s":"0x0"}],"transactionsRoot":"0x661a9febcfa8f1890af549b874faf9fa274aede26ef489d9db0b25daa569450e","uncles":[]}`,
+		},
+	}
+
+	for i, tc := range testSuite {
+		resp := RPCMarshalBlock(block, tc.inclTx, tc.fullTx, params.MainnetChainConfig)
+		out, err := json.Marshal(resp)
+		if err != nil {
+			t.Errorf("test %d: json marshal error: %v", i, err)
+			continue
+		}
+		if have := string(out); have != tc.want {
+			t.Errorf("test %d: want: %s have: %s", i, tc.want, have)
+		}
 	}
 }
 
-var (
-	emptyBlob          = kzg4844.Blob{}
-	emptyBlobs         = []kzg4844.Blob{emptyBlob}
-	emptyBlobCommit, _ = kzg4844.BlobToCommitment(&emptyBlob)
-	emptyBlobProof, _  = kzg4844.ComputeBlobProof(&emptyBlob, emptyBlobCommit)
-	emptyBlobHash      = kzg4844.CalcBlobHashV1(sha256.New(), &emptyBlobCommit)
-)
-
-func TestFillBlobTransaction(t *testing.T) {
+func TestRPCGetBlockOrHeader(t *testing.T) {
 	t.Parallel()
 	var (
 		height   = 5
