@@ -321,8 +321,9 @@ func (st *StateTransition) preCheck() error {
 	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
 	if !st.evm.Config.IsSystemTransaction && st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
 		// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
-		if !st.evm.Config.NoBaseFee || st.gasFeeCap.BitLen() > 0 || st.gasTipCap.BitLen() > 0 {
-			if l := st.gasFeeCap.BitLen(); l > 256 {
+		skipCheck := st.evm.Config.NoBaseFee && msg.GasFeeCap().BitLen() == 0 && msg.GasTipCap().BitLen() == 0
+		if !skipCheck {
+			if l := msg.GasFeeCap().BitLen(); l > 256 {
 				return fmt.Errorf("%w: address %v, maxFeePerGas bit length: %d", ErrFeeCapVeryHigh,
 					msg.From().Hex(), l)
 			}
@@ -336,9 +337,9 @@ func (st *StateTransition) preCheck() error {
 			}
 			// This will panic if baseFee is nil, but basefee presence is verified
 			// as part of header validation.
-			if st.gasFeeCap.Cmp(st.evm.Context.BaseFee) < 0 {
-				return fmt.Errorf("%w: address %v, maxFeePerGas: %s baseFee: %s", ErrFeeCapTooLow,
-					msg.From().Hex(), st.gasFeeCap, st.evm.Context.BaseFee)
+			if msg.GasFeeCap().Cmp(st.evm.Context.BaseFee) < 0 {
+				return fmt.Errorf("%w: address %v, maxFeePerGas: %s, baseFee: %s", ErrFeeCapTooLow,
+					msg.From().Hex(), msg.GasFeeCap(), st.evm.Context.BaseFee)
 			}
 		}
 	}
@@ -386,13 +387,12 @@ func (st *StateTransition) preCheck() error {
 				// This will panic if blobBaseFee is nil, but blobBaseFee presence
 				// is verified as part of header validation.
 				if msg.BlobGasFeeCap().Cmp(st.evm.Context.BlobBaseFee) < 0 {
-					return fmt.Errorf("%w: address %v blobGasFeeCap: %v, blobBaseFee: %v", ErrBlobFeeCapTooLow,
+					return fmt.Errorf("%w: address %v, blobGasFeeCap: %v, blobBaseFee: %v", ErrBlobFeeCapTooLow,
 						msg.From().Hex(), msg.BlobGasFeeCap(), st.evm.Context.BlobBaseFee)
 				}
 			}
 		}
 	}
-
 	return st.buyGas()
 }
 

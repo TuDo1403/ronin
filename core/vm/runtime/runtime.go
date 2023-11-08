@@ -45,7 +45,8 @@ type Config struct {
 	EVMConfig   vm.Config
 	BaseFee     *big.Int
 	BlobHashes  []common.Hash
-	BlobBaseFee *big.Int
+	BlobFeeCap  *big.Int
+	Random      *common.Hash
 
 	State     *state.StateDB
 	GetHashFn func(n uint64) common.Hash
