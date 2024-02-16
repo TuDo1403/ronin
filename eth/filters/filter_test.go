@@ -59,7 +59,7 @@ func BenchmarkFilters(b *testing.B) {
 		addr4   = common.BytesToAddress([]byte("random addresses please"))
 
 		gspec = core.Genesis{
-			Alloc:   core.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
+			Alloc:   types.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		genesis = gspec.ToBlock()

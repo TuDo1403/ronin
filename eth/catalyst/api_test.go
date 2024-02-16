@@ -128,7 +128,6 @@ func TestEth2AssembleBlock(t *testing.T) {
 		Timestamp:  blocks[8].Time(),
 	}
 	execData, err := api.AssembleBlock(blockParams)
-
 	if err != nil {
 		t.Fatalf("error producing block, err=%v", err)
 	}
