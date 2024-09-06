@@ -67,7 +67,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		gp          = new(GasPool).AddGas(block.GasLimit())
 	)
 
-	var receipts = make([]*types.Receipt, 0)
+	receipts := make([]*types.Receipt, 0)
 	// Mutate the block and state according to any hard-fork specs
 	if p.config.DAOForkSupport && p.config.DAOForkBlock != nil && p.config.DAOForkBlock.Cmp(block.Number()) == 0 {
 		misc.ApplyDAOHardFork(statedb)
@@ -187,10 +187,17 @@ func applyTransaction(
 		root = statedb.IntermediateRoot(config.IsEIP158(blockNumber)).Bytes()
 	}
 	*usedGas += result.UsedGas
+	receipt := MakeReceipt(evm, result, statedb, blockNumber, blockHash, tx, *usedGas, root)
+	// create the bloom filter
+	receiptProcessor.Apply(receipt)
+	return receipt, result, err
+}
 
+// MakeReceipt generates the receipt object for a transaction given its execution result.
+func MakeReceipt(evm *vm.EVM, result *ExecutionResult, statedb *state.StateDB, blockNumber *big.Int, blockHash common.Hash, tx *types.Transaction, usedGas uint64, root []byte) *types.Receipt {
 	// Create a new receipt for the transaction, storing the intermediate root and gas used
 	// by the tx.
-	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: *usedGas}
+	receipt := &types.Receipt{Type: tx.Type(), PostState: root, CumulativeGasUsed: usedGas}
 	if result.Failed() {
 		receipt.Status = types.ReceiptStatusFailed
 	} else {
@@ -205,7 +212,7 @@ func applyTransaction(
 	}
 
 	// If the transaction created a contract, store the creation address in the receipt.
-	if msg.To() == nil {
+	if tx.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 	}
 
@@ -214,10 +221,8 @@ func applyTransaction(
 	receipt.BlockHash = blockHash
 	receipt.BlockNumber = blockNumber
 	receipt.TransactionIndex = uint(statedb.TxIndex())
-	// create the bloom filter
-	receiptProcessor.Apply(receipt)
 
-	return receipt, result, err
+	return receipt
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database

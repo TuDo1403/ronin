@@ -250,7 +250,7 @@ func newTestBackend(t *testing.T) (*node.Node, []*types.Block, [][]*types.BlobTx
 	}
 	// Create Ethereum Service
 	genesis.Config.CancunBlock = common.Big1
-	config := &ethconfig.Config{Genesis: genesis, BlobPool: blobpool.Config{}}
+	config := &ethconfig.Config{Genesis: genesis, RPCGasCap: 1000000, BlobPool: blobpool.Config{}}
 	config.Genesis.Config.CancunBlock = common.Big1
 	config.Ethash.PowMode = ethash.ModeFake
 	ethservice, err := eth.New(n, config)
@@ -770,7 +770,7 @@ func testGetBlobSidecars(t *testing.T, chain []*types.Block, blobSidecars [][]*t
 			}
 			if !errors.Is(gotErr, tt.wantErr) {
 				t.Fatalf("got wrong error, got %v, want %s", gotErr, tt.wantErr)
-			}
+			}[
 			if len(got) != len(tt.want) {
 				t.Fatal("mistmatch len")
 			}

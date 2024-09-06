@@ -176,6 +176,8 @@ type EVM struct {
 	callGasTemp uint64
 
 	evmHook EVMHook
+	// precompiles holds the precompiled contracts for the current epoch
+	precompiles map[common.Address]PrecompiledContract
 }
 
 type EVMHook interface {
@@ -194,8 +196,16 @@ func NewEVM(blockCtx BlockContext, txCtx TxContext, statedb StateDB, chainConfig
 		chainConfig: chainConfig,
 		chainRules:  chainConfig.Rules(blockCtx.BlockNumber),
 	}
+	evm.precompiles = activePrecompiledContracts(evm.chainRules)
 	evm.interpreter = NewEVMInterpreter(evm, config)
 	return evm
+}
+
+// SetPrecompiles sets the precompiled contracts for the EVM.
+// This method is only used through RPC calls.
+// It is not thread-safe.
+func (evm *EVM) SetPrecompiles(precompiles PrecompiledContracts) {
+	evm.precompiles = precompiles
 }
 
 // Reset resets the EVM with a new transaction context.Reset
@@ -345,7 +355,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
-	var snapshot = evm.StateDB.Snapshot()
+	snapshot := evm.StateDB.Snapshot()
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {
@@ -400,7 +410,7 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		captureTraceEarly(ErrDepth)
 		return nil, gas, ErrDepth
 	}
-	var snapshot = evm.StateDB.Snapshot()
+	snapshot := evm.StateDB.Snapshot()
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
 	if evm.Config.Tracer != nil {
@@ -451,7 +461,7 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// after all empty accounts were deleted, so this is not required. However, if we omit this,
 	// then certain tests start failing; stRevertTest/RevertPrecompiledTouchExactOOG.json.
 	// We could change this, but for now it's left for legacy reasons
-	var snapshot = evm.StateDB.Snapshot()
+	snapshot := evm.StateDB.Snapshot()
 
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,

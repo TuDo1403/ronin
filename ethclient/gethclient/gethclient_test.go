@@ -54,7 +54,7 @@ func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 		t.Fatalf("can't create new node: %v", err)
 	}
 	// Create Ethereum Service
-	config := &ethconfig.Config{Genesis: genesis}
+	config := &ethconfig.Config{Genesis: genesis, RPCGasCap: 1000000}
 	config.Ethash.PowMode = ethash.ModeFake
 	ethservice, err := eth.New(n, config)
 	if err != nil {
@@ -110,25 +110,32 @@ func TestGethClient(t *testing.T) {
 		{
 			"TestGetProof",
 			func(t *testing.T) { testGetProof(t, client) },
-		}, {
+		},
+		{
 			"TestGCStats",
 			func(t *testing.T) { testGCStats(t, client) },
-		}, {
+		},
+		{
 			"TestMemStats",
 			func(t *testing.T) { testMemStats(t, client) },
-		}, {
+		},
+		{
 			"TestGetNodeInfo",
 			func(t *testing.T) { testGetNodeInfo(t, client) },
-		}, {
+		},
+		{
 			"TestSetHead",
 			func(t *testing.T) { testSetHead(t, client) },
-		}, {
+		},
+		{
 			"TestSubscribePendingTxs",
 			func(t *testing.T) { testSubscribePendingTransactions(t, client) },
-		}, {
+		},
+		{
 			"TestCallContract",
 			func(t *testing.T) { testCallContract(t, client) },
-		}, {
+		},
+		{
 			"TestCallContractWithBlockOverrides",
 			func(t *testing.T) { testCallContractWithBlockOverrides(t, client) },
 		},
@@ -314,17 +321,17 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 
 func TestOverrideAccountMarshal(t *testing.T) {
 	om := map[common.Address]OverrideAccount{
-		common.Address{0x11}: OverrideAccount{
+		{0x11}: {
 			// Zero-valued nonce is not overriddden, but simply dropped by the encoder.
 			Nonce: 0,
 		},
-		common.Address{0xaa}: OverrideAccount{
+		{0xaa}: {
 			Nonce: 5,
 		},
-		common.Address{0xbb}: OverrideAccount{
+		{0xbb}: {
 			Code: []byte{1},
 		},
-		common.Address{0xcc}: OverrideAccount{
+		{0xcc}: {
 			// 'code', 'balance', 'state' should be set when input is
 			// a non-nil but empty value.
 			Code:    []byte{},
@@ -375,7 +382,7 @@ func TestBlockOverridesMarshal(t *testing.T) {
 			bo: BlockOverrides{
 				Coinbase: common.HexToAddress("0x1111111111111111111111111111111111111111"),
 			},
-			want: `{"coinbase":"0x1111111111111111111111111111111111111111"}`,
+			want: `{"feeRecipient":"0x1111111111111111111111111111111111111111"}`,
 		},
 		{
 			bo: BlockOverrides{
@@ -385,7 +392,7 @@ func TestBlockOverridesMarshal(t *testing.T) {
 				GasLimit:   4,
 				BaseFee:    big.NewInt(5),
 			},
-			want: `{"number":"0x1","difficulty":"0x2","time":"0x3","gasLimit":"0x4","baseFee":"0x5"}`,
+			want: `{"number":"0x1","difficulty":"0x2","time":"0x3","gasLimit":"0x4","baseFeePerGas":"0x5"}`,
 		},
 	} {
 		marshalled, err := json.Marshal(&tt.bo)

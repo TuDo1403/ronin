@@ -21,6 +21,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -44,9 +45,12 @@ type PrecompiledContract interface {
 	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
 }
 
+// PrecompiledContracts contains the precompiled contracts supported at the given fork.
+type PrecompiledContracts map[common.Address]PrecompiledContract
+
 // PrecompiledContractsBLS contains the set of pre-compiled Ethereum
 // contracts specified in EIP-2537. These are exported for testing purposes.
-var PrecompiledContractsBLS = map[common.Address]PrecompiledContract{
+var PrecompiledContractsBLS = PrecompiledContracts{
 	common.BytesToAddress([]byte{11}): &bls12381G1Add{},
 	common.BytesToAddress([]byte{12}): &bls12381G1Mul{},
 	common.BytesToAddress([]byte{13}): &bls12381G1MultiExp{},
@@ -69,35 +73,59 @@ var (
 
 	// PrecompiledContractsHomestead contains the default set of pre-compiled Ethereum
 	// contracts used in the Frontier and Homestead releases.
-	PrecompiledContractsHomestead map[common.Address]PrecompiledContract
+	PrecompiledContractsHomestead = PrecompiledContracts{
+		common.BytesToAddress([]byte{0x1}): &ecrecover{},
+		common.BytesToAddress([]byte{0x2}): &sha256hash{},
+		common.BytesToAddress([]byte{0x3}): &ripemd160hash{},
+		common.BytesToAddress([]byte{0x4}): &dataCopy{},
+	}
 
 	// PrecompiledContractsByzantium contains the default set of pre-compiled Ethereum
 	// contracts used in the Byzantium release.
-	PrecompiledContractsByzantium map[common.Address]PrecompiledContract
+	PrecompiledContractsByzantium = PrecompiledContracts{
+		common.BytesToAddress([]byte{0x1}): &ecrecover{},
+		common.BytesToAddress([]byte{0x2}): &sha256hash{},
+		common.BytesToAddress([]byte{0x3}): &ripemd160hash{},
+		common.BytesToAddress([]byte{0x4}): &dataCopy{},
+		common.BytesToAddress([]byte{0x5}): &bigModExp{eip2565: false},
+		common.BytesToAddress([]byte{0x6}): &bn256AddByzantium{},
+		common.BytesToAddress([]byte{0x7}): &bn256ScalarMulByzantium{},
+		common.BytesToAddress([]byte{0x8}): &bn256PairingByzantium{},
+	}
 
 	// PrecompiledContractsIstanbul contains the default set of pre-compiled Ethereum
 	// contracts used in the Istanbul release.
-	PrecompiledContractsIstanbul map[common.Address]PrecompiledContract
+	PrecompiledContractsIstanbul PrecompiledContracts
 
 	// PrecompiledContractsConsortium contains additional Consortium precompiled contract
 	// beside PrecompiledContractsIstanbul
-	PrecompiledContractsConsortium map[common.Address]PrecompiledContract
+	PrecompiledContractsConsortium PrecompiledContracts
 
 	// PrecompiledContractsConsortium contains proof of possession precompiled contract
 	// beside PrecompiledContractsConsortium
-	PrecompiledContractsConsortiumMiko map[common.Address]PrecompiledContract
+	PrecompiledContractsConsortiumMiko PrecompiledContracts
 
 	// PrecompiledContractsBerlin contains the default set of pre-compiled Ethereum
 	// contracts used in the Berlin release.
-	PrecompiledContractsBerlin map[common.Address]PrecompiledContract
+	PrecompiledContractsBerlin = PrecompiledContracts{
+		common.BytesToAddress([]byte{0x1}): &ecrecover{},
+		common.BytesToAddress([]byte{0x2}): &sha256hash{},
+		common.BytesToAddress([]byte{0x3}): &ripemd160hash{},
+		common.BytesToAddress([]byte{0x4}): &dataCopy{},
+		common.BytesToAddress([]byte{0x5}): &bigModExp{eip2565: true},
+		common.BytesToAddress([]byte{0x6}): &bn256AddIstanbul{},
+		common.BytesToAddress([]byte{0x7}): &bn256ScalarMulIstanbul{},
+		common.BytesToAddress([]byte{0x8}): &bn256PairingIstanbul{},
+		common.BytesToAddress([]byte{0x9}): &blake2F{},
+	}
 
 	// PrecompiledContractsCancun contains the default set of pre-compiled Ethereum
 	// contracts used in the Cancun release.
-	PrecompiledContractsCancun map[common.Address]PrecompiledContract
+	PrecompiledContractsCancun PrecompiledContracts
 )
 
-func copyPrecompiledContract(contracts map[common.Address]PrecompiledContract) map[common.Address]PrecompiledContract {
-	cpy := make(map[common.Address]PrecompiledContract)
+func copyPrecompiledContract(contracts PrecompiledContracts) PrecompiledContracts {
+	cpy := make(PrecompiledContracts)
 
 	for address, contract := range contracts {
 		cpy[address] = contract
@@ -107,7 +135,7 @@ func copyPrecompiledContract(contracts map[common.Address]PrecompiledContract) m
 }
 
 func init() {
-	PrecompiledContractsHomestead = map[common.Address]PrecompiledContract{
+	PrecompiledContractsHomestead = PrecompiledContracts{
 		common.BytesToAddress([]byte{1}): &ecrecover{},
 		common.BytesToAddress([]byte{2}): &sha256hash{},
 		common.BytesToAddress([]byte{3}): &ripemd160hash{},
@@ -181,7 +209,27 @@ func init() {
 	}
 }
 
-// ActivePrecompiles returns the precompiles enabled with the current configuration.
+func activePrecompiledContracts(rules params.Rules) PrecompiledContracts {
+	switch {
+	case rules.IsCancun:
+		return PrecompiledContractsCancun
+	case rules.IsBerlin:
+		return PrecompiledContractsBerlin
+	case rules.IsIstanbul:
+		return PrecompiledContractsIstanbul
+	case rules.IsByzantium:
+		return PrecompiledContractsByzantium
+	default:
+		return PrecompiledContractsHomestead
+	}
+}
+
+// ActivePrecompiledContracts returns a copy of precompiled contracts enabled with the current configuration.
+func ActivePrecompiledContracts(rules params.Rules) PrecompiledContracts {
+	return maps.Clone(activePrecompiledContracts(rules))
+}
+
+// ActivePrecompiles returns the precompile addresses enabled with the current configuration.
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
 	case rules.IsCancun:
@@ -216,9 +264,7 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, suppliedGas uin
 	return output, suppliedGas, err
 }
 
-var (
-	errBlacklistedAddress = errors.New("address is blacklisted")
-)
+var errBlacklistedAddress = errors.New("address is blacklisted")
 
 type blacklistedAddress struct{}
 
@@ -278,6 +324,7 @@ type sha256hash struct{}
 func (c *sha256hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Sha256PerWordGas + params.Sha256BaseGas
 }
+
 func (c *sha256hash) Run(input []byte) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
@@ -293,6 +340,7 @@ type ripemd160hash struct{}
 func (c *ripemd160hash) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.Ripemd160PerWordGas + params.Ripemd160BaseGas
 }
+
 func (c *ripemd160hash) Run(input []byte) ([]byte, error) {
 	ripemd := ripemd160.New()
 	ripemd.Write(input)
@@ -309,6 +357,7 @@ type dataCopy struct{}
 func (c *dataCopy) RequiredGas(input []byte) uint64 {
 	return uint64(len(input)+31)/32*params.IdentityPerWordGas + params.IdentityBaseGas
 }
+
 func (c *dataCopy) Run(in []byte) ([]byte, error) {
 	return in, nil
 }
