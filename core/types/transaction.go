@@ -627,7 +627,6 @@ func NewMessage(
 	isFake bool,
 	blobFeeCap *big.Int,
 	blobHashes []common.Hash,
-	authList []Authorization,
 ) Message {
 	return Message{
 		from:          from,
@@ -645,7 +644,6 @@ func NewMessage(
 		expiredTime:   0,
 		blobGasFeeCap: blobFeeCap,
 		blobHashes:    blobHashes,
-		authList:      authList,
 	}
 }
 
