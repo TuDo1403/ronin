@@ -307,8 +307,8 @@ var (
 	RoninTestnetProfileContractAddress             = common.HexToAddress("0x3b67c8D22a91572a6AB18acC9F70787Af04A4043")
 	RoninTestnetFinalityTrackingAddress            = common.HexToAddress("0x41aCDFe786171824a037f2Cd6224c5916A58969a")
 	RoninTestnetWhiteListDeployerContractV2Address = common.HexToAddress("0x50a7e07Aa75eB9C04281713224f50403cA79851F")
-	RoninTestnetTreasuryAddress                   = common.HexToAddress("0x5cfca565c09cc32bb7ba7222a648f1b014d6c30b")
-	RoninTestnetChainConfig = &ChainConfig{
+	RoninTestnetTreasuryAddress                    = common.HexToAddress("0x5cfca565c09cc32bb7ba7222a648f1b014d6c30b")
+	RoninTestnetChainConfig                        = &ChainConfig{
 		ChainID:                            big.NewInt(2021),
 		HomesteadBlock:                     big.NewInt(0),
 		EIP150Block:                        big.NewInt(0),
@@ -468,6 +468,7 @@ var (
 		BerlinBlock:                   big.NewInt(0),
 		LondonBlock:                   big.NewInt(0),
 		CancunBlock:                   big.NewInt(0),
+		PragueBlock:                   big.NewInt(0),
 		ArrowGlacierBlock:             nil,
 		OdysseusBlock:                 nil,
 		FenixBlock:                    nil,
@@ -612,6 +613,7 @@ type ChainConfig struct {
 	ShanghaiBlock *big.Int `json:"shanghaiBlock,omitempty"` // Shanghai switch block (nil = no fork, 0 = already on activated)
 	CancunBlock   *big.Int `json:"cancunBlock,omitempty"`   // Cancun switch block (nil = no fork, 0 = already on activated)
 	VenokiBlock   *big.Int `json:"venokiBlock,omitempty"`   // Venoki switch block (nil = no fork, 0 = already on activated)
+	PragueBlock   *big.Int `json:"pragueBlock,omitempty"`   // Prague switch block (nil = no fork, 0 = already on activated)
 
 	BlacklistContractAddress           *common.Address `json:"blacklistContractAddress,omitempty"`           // Address of Blacklist Contract (nil = no blacklist)
 	FenixValidatorContractAddress      *common.Address `json:"fenixValidatorContractAddress,omitempty"`      // Address of Ronin Contract in the Fenix hardfork (nil = no blacklist)
@@ -745,7 +747,7 @@ func (c *ChainConfig) String() string {
 	chainConfigFmt += "Engine: %v, Blacklist Contract: %v, Fenix Validator Contract: %v, ConsortiumV2: %v, ConsortiumV2.RoninValidatorSet: %v, "
 	chainConfigFmt += "ConsortiumV2.SlashIndicator: %v, ConsortiumV2.StakingContract: %v, Puffy: %v, Buba: %v, Olek: %v, Shillin: %v, Antenna: %v, "
 	chainConfigFmt += "ConsortiumV2.ProfileContract: %v, ConsortiumV2.FinalityTracking: %v, whiteListDeployerContractV2Address: %v, roninTreasuryAddress: %v, "
-	chainConfigFmt += "Miko: %v, Tripp: %v, TrippPeriod: %v, Aaron: %v, Shanghai: %v, Cancun: %v, Venoki: %v}"
+	chainConfigFmt += "Miko: %v, Tripp: %v, TrippPeriod: %v, Aaron: %v, Shanghai: %v, Cancun: %v, Venoki: %v, Prague: %v}"
 
 	return fmt.Sprintf(chainConfigFmt,
 		c.ChainID,
@@ -788,6 +790,7 @@ func (c *ChainConfig) String() string {
 		c.ShanghaiBlock,
 		c.CancunBlock,
 		c.VenokiBlock,
+		c.PragueBlock,
 	)
 }
 
@@ -948,6 +951,11 @@ func (c *ChainConfig) IsCancun(num *big.Int) bool {
 // IsVenoki returns whether the num is equals to or larger than the venoki fork block.
 func (c *ChainConfig) IsVenoki(num *big.Int) bool {
 	return isForked(c.VenokiBlock, num)
+}
+
+// IsPrague returns whether the num is equals to or larger than the prague fork block.
+func (c *ChainConfig) IsPrague(num *big.Int) bool {
+	return isForked(c.PragueBlock, num)
 }
 
 // CheckCompatible checks whether scheduled fork transitions have been imported
@@ -1175,7 +1183,7 @@ type Rules struct {
 	IsBerlin, IsLondon, IsOdysseusFork                      bool
 	IsFenix, IsShillin, IsConsortiumV2, IsAntenna           bool
 	IsMiko, IsTripp, IsAaron, IsShanghai, IsCancun          bool
-	IsVenoki, IsLastConsortiumV1Block                       bool
+	IsVenoki, IsLastConsortiumV1Block, IsPrague             bool
 }
 
 // Rules ensures c's ChainID is not nil.
@@ -1208,5 +1216,6 @@ func (c *ChainConfig) Rules(num *big.Int) Rules {
 		IsShanghai:              c.IsShanghai(num),
 		IsCancun:                c.IsCancun(num),
 		IsVenoki:                c.IsVenoki(num),
+		IsPrague:                c.IsPrague(num),
 	}
 }
