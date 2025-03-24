@@ -83,18 +83,20 @@ type stPostState struct {
 //go:generate gencodec -type stEnv -field-override stEnvMarshaling -out gen_stenv.go
 
 type stEnv struct {
-	Coinbase      common.Address `json:"currentCoinbase"   gencodec:"required"`
-	Difficulty    *big.Int       `json:"currentDifficulty" gencodec:"required"`
-	GasLimit      uint64         `json:"currentGasLimit"   gencodec:"required"`
-	Number        uint64         `json:"currentNumber"     gencodec:"required"`
-	Timestamp     uint64         `json:"currentTimestamp"  gencodec:"required"`
-	BaseFee       *big.Int       `json:"currentBaseFee"  gencodec:"optional"`
+	Coinbase      common.Address `json:"currentCoinbase"      gencodec:"required"`
+	Difficulty    *big.Int       `json:"currentDifficulty"    gencodec:"optional"`
+	Random        *big.Int       `json:"currentRandom"        gencodec:"optional"`
+	GasLimit      uint64         `json:"currentGasLimit"      gencodec:"required"`
+	Number        uint64         `json:"currentNumber"        gencodec:"required"`
+	Timestamp     uint64         `json:"currentTimestamp"     gencodec:"required"`
+	BaseFee       *big.Int       `json:"currentBaseFee"       gencodec:"optional"`
 	ExcessBlobGas *uint64        `json:"currentExcessBlobGas" gencodec:"optional"`
 }
 
 type stEnvMarshaling struct {
 	Coinbase      common.UnprefixedAddress
 	Difficulty    *math.HexOrDecimal256
+	Random        *math.HexOrDecimal256
 	GasLimit      math.HexOrDecimal64
 	Number        math.HexOrDecimal64
 	Timestamp     math.HexOrDecimal64
@@ -121,6 +123,18 @@ type stTransaction struct {
 	AuthorizationList    []*stAuthorization  `json:"authorizationList,omitempty"`
 }
 
+type stTransactionMarshaling struct {
+	GasPrice             *math.HexOrDecimal256
+	MaxFeePerGas         *math.HexOrDecimal256
+	MaxPriorityFeePerGas *math.HexOrDecimal256
+	Nonce                math.HexOrDecimal64
+	GasLimit             []math.HexOrDecimal64
+	PrivateKey           hexutil.Bytes
+	BlobGasFeeCap        *math.HexOrDecimal256
+}
+
+//go:generate go run github.com/fjl/gencodec -type stAuthorization -field-override stAuthorizationMarshaling -out gen_stauthorization.go
+
 // Authorization is an authorization from an account to deploy code at it's address.
 type stAuthorization struct {
 	ChainID *big.Int       `json:"chainId" gencodec:"required"`
@@ -129,15 +143,6 @@ type stAuthorization struct {
 	V       uint8          `json:"v" gencodec:"required"`
 	R       *big.Int       `json:"r" gencodec:"required"`
 	S       *big.Int       `json:"s" gencodec:"required"`
-}
-
-type stTransactionMarshaling struct {
-	GasPrice             *math.HexOrDecimal256
-	MaxFeePerGas         *math.HexOrDecimal256
-	MaxPriorityFeePerGas *math.HexOrDecimal256
-	Nonce                math.HexOrDecimal64
-	GasLimit             []math.HexOrDecimal64
-	PrivateKey           hexutil.Bytes
 }
 
 // field type overrides for gencodec
@@ -398,7 +403,7 @@ func (tx *stTransaction) toMessage(ps stPostState, baseFee *big.Int) (core.Messa
 		authList = make([]types.SetCodeAuthorization, len(tx.AuthorizationList))
 		for i, auth := range tx.AuthorizationList {
 			authList[i] = types.SetCodeAuthorization{
-				ChainID: auth.ChainID.Uint64(),
+				ChainID: *uint256.MustFromBig(auth.ChainID),
 				Address: auth.Address,
 				Nonce:   auth.Nonce,
 				V:       auth.V,
