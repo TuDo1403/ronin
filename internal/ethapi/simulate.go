@@ -159,9 +159,9 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 			}
 		}
 	}
-	if sim.chainConfig.IsCancun(header.Number, header.Time) {
+	if sim.chainConfig.IsCancun(header.Number) {
 		var excess uint64
-		if sim.chainConfig.IsCancun(parent.Number, parent.Time) {
+		if sim.chainConfig.IsCancun(parent.Number) {
 			excess = eip4844.CalcExcessBlobGas(*parent.ExcessBlobGas, *parent.BlobGasUsed)
 		} else {
 			excess = eip4844.CalcExcessBlobGas(0, 0)
@@ -182,6 +182,8 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 		txes                 = make([]*types.Transaction, len(block.Calls))
 		callResults          = make([]simCallResult, len(block.Calls))
 		receipts             = make([]*types.Receipt, len(block.Calls))
+		// Default tracer is the struct logger
+
 		// Block hash will be repaired after execution.
 		tracer   = newTracer(sim.traceTransfers, blockContext.BlockNumber.Uint64(), common.Hash{}, common.Hash{}, 0)
 		vmConfig = &vm.Config{
@@ -190,7 +192,6 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 		}
 		evm = vm.NewEVM(blockContext, vm.TxContext{GasPrice: new(big.Int)}, sim.state, sim.chainConfig, *vmConfig)
 	)
-	sim.state.SetLogger(tracer.Hooks())
 	// It is possible to override precompiles with EVM bytecode, or
 	// move them to another address.
 	if precompiles != nil {
@@ -242,14 +243,10 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	}
 	header.Root = sim.state.IntermediateRoot(true)
 	header.GasUsed = gasUsed
-	if sim.chainConfig.IsCancun(header.Number, header.Time) {
+	if sim.chainConfig.IsCancun(header.Number) {
 		header.BlobGasUsed = &blobGasUsed
 	}
-	var withdrawals types.Withdrawals
-	if sim.chainConfig.IsShanghai(header.Number, header.Time) {
-		withdrawals = make([]*types.Withdrawal, 0)
-	}
-	b := types.NewBlock(header, &types.Body{Transactions: txes, Withdrawals: withdrawals}, receipts, trie.NewStackTrie(nil))
+	b := types.NewBlock(header, txes, []*types.Header{}, receipts, trie.NewStackTrie(nil))
 	repairLogs(callResults, b.Hash())
 	return b, callResults, nil
 }
@@ -285,10 +282,7 @@ func (sim *simulator) sanitizeCall(call *TransactionArgs, state *state.StateDB, 
 }
 
 func (sim *simulator) activePrecompiles(base *types.Header) vm.PrecompiledContracts {
-	var (
-		isMerge = (base.Difficulty.Sign() == 0)
-		rules   = sim.chainConfig.Rules(base.Number, isMerge, base.Time)
-	)
+	rules := sim.chainConfig.Rules(base.Number)
 	return maps.Clone(vm.ActivePrecompiledContracts(rules))
 }
 
@@ -362,24 +356,13 @@ func (sim *simulator) makeHeaders(blocks []simBlock) ([]*types.Header, error) {
 			return nil, errors.New("empty block number")
 		}
 		overrides := block.BlockOverrides
-
-		var withdrawalsHash *common.Hash
-		if sim.chainConfig.IsShanghai(overrides.Number.ToInt(), (uint64)(*overrides.Time)) {
-			withdrawalsHash = &types.EmptyWithdrawalsHash
-		}
-		var parentBeaconRoot *common.Hash
-		if sim.chainConfig.IsCancun(overrides.Number.ToInt(), (uint64)(*overrides.Time)) {
-			parentBeaconRoot = &common.Hash{}
-		}
 		header = overrides.MakeHeader(&types.Header{
-			UncleHash:        types.EmptyUncleHash,
-			ReceiptHash:      types.EmptyReceiptsHash,
-			TxHash:           types.EmptyTxsHash,
-			Coinbase:         header.Coinbase,
-			Difficulty:       header.Difficulty,
-			GasLimit:         header.GasLimit,
-			WithdrawalsHash:  withdrawalsHash,
-			ParentBeaconRoot: parentBeaconRoot,
+			UncleHash:   types.EmptyUncleHash,
+			ReceiptHash: types.EmptyReceiptsHash,
+			TxHash:      types.EmptyTxsHash,
+			Coinbase:    header.Coinbase,
+			Difficulty:  header.Difficulty,
+			GasLimit:    header.GasLimit,
 		})
 		res[bi] = header
 	}

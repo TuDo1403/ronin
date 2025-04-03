@@ -1071,7 +1071,7 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 	// Apply the customization rules if required.
 	if config != nil {
 		config.BlockOverrides.Apply(&vmctx)
-		rules := api.backend.ChainConfig().Rules(vmctx.BlockNumber, vmctx.Random != nil, vmctx.Time)
+		rules := api.backend.ChainConfig().Rules(vmctx.BlockNumber)
 
 		precompiles := vm.ActivePrecompiledContracts(rules)
 		if err := config.StateOverrides.Apply(statedb, precompiles); err != nil {
@@ -1079,21 +1079,16 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 		}
 	}
 	// Execute the trace
-	msg, err := args.ToMessage(api.backend.RPCGasCap(), block.BaseFee())
-	if err != nil {
-		return nil, err
-	}
 	var (
 		msg         = args.ToMessage(vmctx.BaseFee, true, true)
-		tx          = args.ToTransaction(types.LegacyTxType)
 		traceConfig *TraceConfig
 	)
 	// Lower the basefee to 0 to avoid breaking EVM
 	// invariants (basefee < feecap).
-	if msg.GasPrice.Sign() == 0 {
+	if msg.GasPrice().Sign() == 0 {
 		vmctx.BaseFee = new(big.Int)
 	}
-	if msg.BlobGasFeeCap != nil && msg.BlobGasFeeCap.BitLen() == 0 {
+	if msg.BlobGasFeeCap != nil && msg.BlobGasFeeCap().BitLen() == 0 {
 		vmctx.BlobBaseFee = new(big.Int)
 	}
 	if config != nil {

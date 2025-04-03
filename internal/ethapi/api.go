@@ -26,7 +26,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/common"
@@ -519,7 +518,7 @@ func (s *PrivateAccountAPI) SignTransaction(ctx context.Context, args Transactio
 	}
 	// Before actually signing the transaction, ensure the transaction fee is reasonable.
 	tx := args.ToTransaction(types.LegacyTxType)
-	if err := checkTxFee(tx.GasPrice(), tx.Gas(), api.b.RPCTxFeeCap()); err != nil {
+	if err := checkTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
 	signed, err := s.signTransaction(ctx, &args, passwd)
@@ -967,27 +966,27 @@ func (diff *StateOverride) Apply(statedb *state.StateDB, precompiles vm.Precompi
 		}
 		// Override account nonce.
 		if account.Nonce != nil {
-			state.SetNonce(addr, uint64(*account.Nonce))
+			statedb.SetNonce(addr, uint64(*account.Nonce))
 		}
 		// Override account(contract) code.
 		if account.Code != nil {
-			state.SetCode(addr, *account.Code)
+			statedb.SetCode(addr, *account.Code)
 		}
 		// Override account balance.
 		if account.Balance != nil {
-			state.SetBalance(addr, (*big.Int)(*account.Balance))
+			statedb.SetBalance(addr, (*big.Int)(account.Balance))
 		}
 		if account.State != nil && account.StateDiff != nil {
 			return fmt.Errorf("account %s has both 'state' and 'stateDiff'", addr.Hex())
 		}
 		// Replace entire state if caller requires.
 		if account.State != nil {
-			state.SetStorage(addr, *account.State)
+			statedb.SetStorage(addr, account.State)
 		}
 		// Apply state diff into specified accounts.
 		if account.StateDiff != nil {
-			for key, value := range *account.StateDiff {
-				state.SetState(addr, key, value)
+			for key, value := range account.StateDiff {
+				statedb.SetState(addr, key, value)
 			}
 		}
 	}
@@ -1136,13 +1135,16 @@ func applyMessage(ctx context.Context, b Backend, args TransactionArgs, state *s
 	msg := args.ToMessage(header.BaseFee, skipChecks, skipChecks)
 	// Lower the basefee to 0 to avoid breaking EVM
 	// invariants (basefee < feecap).
-	if msg.GasPrice.Sign() == 0 {
+	if msg.GasPrice().Sign() == 0 {
 		blockContext.BaseFee = new(big.Int)
 	}
-	if msg.BlobGasFeeCap != nil && msg.BlobGasFeeCap.BitLen() == 0 {
+	if msg.BlobGasFeeCap() != nil && msg.BlobGasFeeCap().BitLen() == 0 {
 		blockContext.BlobBaseFee = new(big.Int)
 	}
-	evm := b.GetEVM(ctx, msg, state, header, vmConfig, blockContext)
+	evm, _, err := b.GetEVM(ctx, msg, state, header, vmConfig, blockContext)
+	if err != nil {
+		return nil, err
+	}
 	if precompiles != nil {
 		evm.SetPrecompiles(precompiles)
 	}
@@ -1150,7 +1152,7 @@ func applyMessage(ctx context.Context, b Backend, args TransactionArgs, state *s
 	return applyMessageWithEVM(ctx, evm, msg, state, timeout, gp)
 }
 
-func applyMessageWithEVM(ctx context.Context, evm *vm.EVM, msg *core.Message, state *state.StateDB, timeout time.Duration, gp *core.GasPool) (*core.ExecutionResult, error) {
+func applyMessageWithEVM(ctx context.Context, evm *vm.EVM, msg *types.Message, state *state.StateDB, timeout time.Duration, gp *core.GasPool) (*core.ExecutionResult, error) {
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
 	go func() {
@@ -1160,9 +1162,6 @@ func applyMessageWithEVM(ctx context.Context, evm *vm.EVM, msg *core.Message, st
 
 	// Execute the message.
 	result, err := core.ApplyMessage(evm, msg, gp)
-	if err := vmError(); err != nil {
-		return nil, err
-	}
 
 	// If the timer caused an abort, return an appropriate error message
 	if evm.Cancelled() {
@@ -1193,37 +1192,6 @@ func DoCall(
 	return doCall(ctx, b, args, state, header, overrides, blockOverrides, timeout, globalGasCap)
 }
 
-func newRevertError(revert []byte) *revertError {
-	err := vm.ErrExecutionReverted
-
-	reason, errUnpack := abi.UnpackRevert(revert)
-	if errUnpack == nil {
-		err = fmt.Errorf("%w: %v", vm.ErrExecutionReverted, reason)
-	}
-	return &revertError{
-		error:  err,
-		reason: hexutil.Encode(revert),
-	}
-}
-
-// revertError is an API error that encompassas an EVM revertal with JSON error
-// code and a binary data blob.
-type revertError struct {
-	error
-	reason string // revert reason hex encoded
-}
-
-// ErrorCode returns the JSON error code for a revertal.
-// See: https://github.com/ethereum/wiki/wiki/JSON-RPC-Error-Codes-Improvement-Proposal
-func (e *revertError) ErrorCode() int {
-	return 3
-}
-
-// ErrorData returns the hex encoded revert reason.
-func (e *revertError) ErrorData() interface{} {
-	return e.reason
-}
-
 // Call executes the given transaction on the state for the given block number.
 //
 // Additionally, the caller can specify a batch of contract for fields overriding.
@@ -1249,7 +1217,7 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args TransactionArgs, bl
 //
 // Note, this function doesn't make any changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (api *BlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrOrHash *rpc.BlockNumberOrHash) ([]map[string]interface{}, error) {
+func (api *PublicBlockChainAPI) SimulateV1(ctx context.Context, opts simOpts, blockNrOrHash *rpc.BlockNumberOrHash) ([]map[string]interface{}, error) {
 	if len(opts.BlockStateCalls) == 0 {
 		return nil, &invalidParamsError{message: "empty input"}
 	} else if len(opts.BlockStateCalls) > maxSimulateBlocks {
@@ -1733,13 +1701,13 @@ func AccessList(ctx context.Context, b Backend, blockNrOrHash rpc.BlockNumberOrH
 		vmenv, _, err := b.GetEVM(ctx, msg, statedb, header, &config, nil)
 		// Lower the basefee to 0 to avoid breaking EVM
 		// invariants (basefee < feecap).
-		if msg.GasPrice.Sign() == 0 {
+		if msg.GasPrice().Sign() == 0 {
 			vmenv.Context.BaseFee = new(big.Int)
 		}
-		if msg.BlobGasFeeCap != nil && msg.BlobGasFeeCap.BitLen() == 0 {
+		if msg.BlobGasFeeCap != nil && msg.BlobGasFeeCap().BitLen() == 0 {
 			vmenv.Context.BlobBaseFee = new(big.Int)
 		}
-		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
+		res, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 		if err != nil {
 			return nil, 0, nil, fmt.Errorf("failed to apply transaction: %v err: %v", args.ToTransaction(types.LegacyTxType).Hash(), err)
 		}
@@ -2127,7 +2095,7 @@ func (s *PublicTransactionPoolAPI) SignTransaction(ctx context.Context, args Tra
 	}
 	// Before actually sign the transaction, ensure the transaction fee is reasonable.
 	tx := args.ToTransaction(types.LegacyTxType)
-	if err := checkTxFee(tx.GasPrice(), tx.Gas(), api.b.RPCTxFeeCap()); err != nil {
+	if err := checkTxFee(tx.GasPrice(), tx.Gas(), s.b.RPCTxFeeCap()); err != nil {
 		return nil, err
 	}
 	signed, err := s.sign(args.from(), tx)
@@ -2214,7 +2182,7 @@ func (s *PublicTransactionPoolAPI) Resend(ctx context.Context, sendArgs Transact
 			if gasLimit != nil && *gasLimit != 0 {
 				sendArgs.Gas = gasLimit
 			}
-			signedTx, err := api.sign(sendArgs.from(), sendArgs.ToTransaction(types.LegacyTxType))
+			signedTx, err := s.sign(sendArgs.from(), sendArgs.ToTransaction(types.LegacyTxType))
 			if err != nil {
 				return common.Hash{}, err
 			}

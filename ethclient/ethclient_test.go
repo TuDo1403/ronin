@@ -293,8 +293,8 @@ func generateTestChain() ([]*types.Block, [][]*types.BlobTxSidecar, [][]common.H
 	blocks, _ := core.GenerateChain(genesis.Config, gblock, engine, db, 2, generate, true)
 	// add genesis blob/sidecars/txhash to the begining of the list
 	blocks = append([]*types.Block{gblock}, blocks...)
-	blobSidecars = append([][]*types.BlobTxSidecar{[]*types.BlobTxSidecar{}}, blobSidecars...)
-	blobTxHashes = append([][]common.Hash{[]common.Hash{}}, blobTxHashes...)
+	blobSidecars = append([][]*types.BlobTxSidecar{{}}, blobSidecars...)
+	blobTxHashes = append([][]common.Hash{{}}, blobTxHashes...)
 
 	return blocks, blobSidecars, blobTxHashes
 }
@@ -770,7 +770,7 @@ func testGetBlobSidecars(t *testing.T, chain []*types.Block, blobSidecars [][]*t
 			}
 			if !errors.Is(gotErr, tt.wantErr) {
 				t.Fatalf("got wrong error, got %v, want %s", gotErr, tt.wantErr)
-			}[
+			}
 			if len(got) != len(tt.want) {
 				t.Fatal("mistmatch len")
 			}

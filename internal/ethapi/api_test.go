@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -827,6 +828,7 @@ func TestCall(t *testing.T) {
 	// Initialize test accounts
 	var (
 		accounts = newAccounts(3)
+		dad      = common.HexToAddress("0x0000000000000000000000000000000000000dad")
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
 			Alloc: core.GenesisAlloc{
@@ -838,6 +840,7 @@ func TestCall(t *testing.T) {
 		genBlocks = 10
 		signer    = types.HomesteadSigner{}
 	)
+
 	api := NewPublicBlockChainAPI(newTestBackend(t, genBlocks, genesis, ethash.NewFaker(), func(i int, b *core.BlockGen) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 wei
@@ -954,7 +957,7 @@ func TestCall(t *testing.T) {
 			overrides: StateOverride{
 				randomAccounts[2].addr: OverrideAccount{
 					Code:      hex2Bytes("6080604052348015600f57600080fd5b506004361060285760003560e01c80638381f58a14602d575b600080fd5b60336049565b6040518082815260200191505060405180910390f35b6000548156fea2646970667358221220eab35ffa6ab2adfe380772a48b8ba78e82a1b820a18fcb6f59aa4efb20a5f60064736f6c63430007040033"),
-					StateDiff: &map[common.Hash]common.Hash{{}: common.BigToHash(big.NewInt(123))},
+					StateDiff: map[common.Hash]common.Hash{{}: common.BigToHash(big.NewInt(123))},
 				},
 			},
 			want: "0x000000000000000000000000000000000000000000000000000000000000007b",
@@ -1059,7 +1062,7 @@ func TestCall(t *testing.T) {
 		},
 	}
 	for _, tc := range testSuite {
-		result, err := api.Call(context.Background(), tc.call, &rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides, &tc.blockOverrides)
+		result, err := api.Call(context.Background(), tc.call, rpc.BlockNumberOrHash{BlockNumber: &tc.blockNumber}, &tc.overrides, &tc.blockOverrides)
 		if tc.expectErr != nil {
 			if err == nil {
 				t.Errorf("test %s: want error %v, have nothing", tc.name, tc.expectErr)
@@ -1096,7 +1099,7 @@ func TestSimulateV1(t *testing.T) {
 		coinbase     = "0x000000000000000000000000000000000000ffff"
 		genesis      = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: types.GenesisAlloc{
+			Alloc: core.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -1136,7 +1139,7 @@ func TestSimulateV1(t *testing.T) {
 		}
 		sha256Address = common.BytesToAddress([]byte{0x02})
 	)
-	api := NewBlockChainAPI(newTestBackend(t, genBlocks, genesis, ethash.NewFaker(), func(i int, b *core.BlockGen) {
+	api := NewPublicBlockChainAPI(newTestBackend(t, genBlocks, genesis, ethash.NewFaker(), func(i int, b *core.BlockGen) {
 		b.SetCoinbase(common.HexToAddress(coinbase))
 		// Transfer from account[0] to account[1]
 		//    value: 1000 wei
@@ -2230,35 +2233,23 @@ func TestSimulateV1(t *testing.T) {
 				t.Fatalf("failed to unmarshal result: %v", err)
 			}
 			if !reflect.DeepEqual(have, tc.want) {
+				t.Log(string(resBytes))
 				t.Errorf("test %s, result mismatch, have\n%v\n, want\n%v\n", tc.name, have, tc.want)
 			}
 		})
 	}
 }
 
-type Account struct {
-	key  *ecdsa.PrivateKey
-	addr common.Address
-}
-
-func newAccounts(n int) (accounts []Account) {
-	for i := 0; i < n; i++ {
-		key, _ := crypto.GenerateKey()
-		addr := crypto.PubkeyToAddress(key.PublicKey)
-		accounts = append(accounts, Account{key: key, addr: addr})
+func TestHeader4844MarshalJson(t *testing.T) {
+	header := types.Header{
+		Number:     big.NewInt(100),
+		Difficulty: big.NewInt(7),
 	}
-	slices.SortFunc(accounts, func(a, b Account) int { return bytes.Compare(a.addr[:], b.addr[:]) })
-	return accounts
-}
-
-func newRPCBalance(balance *big.Int) *hexutil.Big {
-	rpcBalance := (*hexutil.Big)(balance)
-	return rpcBalance
-}
-
-func hex2Bytes(str string) *hexutil.Bytes {
-	rpcBytes := hexutil.Bytes(common.Hex2Bytes(str))
-	return &rpcBytes
+	data, err := json.Marshal(RPCMarshalHeader(&header))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println(string(data))
 }
 
 // testHasher is the helper tool for transaction/receipt list hashing.
@@ -2286,75 +2277,13 @@ func (h *testHasher) Hash() common.Hash {
 	return common.BytesToHash(h.hasher.Sum(nil))
 }
 
-func TestRPCMarshalBlock(t *testing.T) {
-	t.Parallel()
-	var (
-		txs []*types.Transaction
-		to  = common.BytesToAddress([]byte{0x11})
-	)
-	for i := uint64(1); i <= 4; i++ {
-		var tx *types.Transaction
-		if i%2 == 0 {
-			tx = types.NewTx(&types.LegacyTx{
-				Nonce:    i,
-				GasPrice: big.NewInt(11111),
-				Gas:      1111,
-				To:       &to,
-				Value:    big.NewInt(111),
-				Data:     []byte{0x11, 0x11, 0x11},
-			})
-		} else {
-			tx = types.NewTx(&types.AccessListTx{
-				ChainID:  big.NewInt(1337),
-				Nonce:    i,
-				GasPrice: big.NewInt(11111),
-				Gas:      1111,
-				To:       &to,
-				Value:    big.NewInt(111),
-				Data:     []byte{0x11, 0x11, 0x11},
-			})
-		}
-		txs = append(txs, tx)
-	}
-	block := types.NewBlock(&types.Header{Number: big.NewInt(100)}, txs, nil, nil, newHasher())
-
-	testSuite := []struct {
-		inclTx bool
-		fullTx bool
-		want   string
-	}{
-		// without txs
-		{
-			inclTx: false,
-			fullTx: false,
-			want:   `{"difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x296","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactionsRoot":"0x661a9febcfa8f1890af549b874faf9fa274aede26ef489d9db0b25daa569450e","uncles":[]}`,
-		},
-		// only tx hashes
-		{
-			inclTx: true,
-			fullTx: false,
-			want:   `{"difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x296","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactions":["0x7d39df979e34172322c64983a9ad48302c2b889e55bda35324afecf043a77605","0x9bba4c34e57c875ff57ac8d172805a26ae912006985395dc1bdf8f44140a7bf4","0x98909ea1ff040da6be56bc4231d484de1414b3c1dac372d69293a4beb9032cb5","0x12e1f81207b40c3bdcc13c0ee18f5f86af6d31754d57a0ea1b0d4cfef21abef1"],"transactionsRoot":"0x661a9febcfa8f1890af549b874faf9fa274aede26ef489d9db0b25daa569450e","uncles":[]}`,
-		},
-		// full tx details
-		{
-			inclTx: true,
-			fullTx: true,
-			want:   `{"difficulty":"0x0","extraData":"0x","gasLimit":"0x0","gasUsed":"0x0","hash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x0000000000000000000000000000000000000000","mixHash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0000000000000000","number":"0x64","parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000","receiptsRoot":"0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421","sha3Uncles":"0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347","size":"0x296","stateRoot":"0x0000000000000000000000000000000000000000000000000000000000000000","timestamp":"0x0","transactions":[{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x7d39df979e34172322c64983a9ad48302c2b889e55bda35324afecf043a77605","input":"0x111111","nonce":"0x1","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x0","value":"0x6f","type":"0x1","accessList":[],"chainId":"0x539","v":"0x0","r":"0x0","s":"0x0"},{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x9bba4c34e57c875ff57ac8d172805a26ae912006985395dc1bdf8f44140a7bf4","input":"0x111111","nonce":"0x2","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x1","value":"0x6f","type":"0x0","chainId":"0x7fffffffffffffee","v":"0x0","r":"0x0","s":"0x0"},{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x98909ea1ff040da6be56bc4231d484de1414b3c1dac372d69293a4beb9032cb5","input":"0x111111","nonce":"0x3","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x2","value":"0x6f","type":"0x1","accessList":[],"chainId":"0x539","v":"0x0","r":"0x0","s":"0x0"},{"blockHash":"0x9b73c83b25d0faf7eab854e3684c7e394336d6e135625aafa5c183f27baa8fee","blockNumber":"0x64","from":"0x0000000000000000000000000000000000000000","gas":"0x457","gasPrice":"0x2b67","hash":"0x12e1f81207b40c3bdcc13c0ee18f5f86af6d31754d57a0ea1b0d4cfef21abef1","input":"0x111111","nonce":"0x4","to":"0x0000000000000000000000000000000000000011","transactionIndex":"0x3","value":"0x6f","type":"0x0","chainId":"0x7fffffffffffffee","v":"0x0","r":"0x0","s":"0x0"}],"transactionsRoot":"0x661a9febcfa8f1890af549b874faf9fa274aede26ef489d9db0b25daa569450e","uncles":[]}`,
-		},
-	}
-
-	for i, tc := range testSuite {
-		resp := RPCMarshalBlock(block, tc.inclTx, tc.fullTx, params.MainnetChainConfig)
-		out, err := json.Marshal(resp)
-		if err != nil {
-			t.Errorf("test %d: json marshal error: %v", i, err)
-			continue
-		}
-		if have := string(out); have != tc.want {
-			t.Errorf("test %d: want: %s have: %s", i, tc.want, have)
-		}
-	}
-}
+var (
+	emptyBlob          = kzg4844.Blob{0x11}
+	emptyBlobs         = []kzg4844.Blob{emptyBlob}
+	emptyBlobCommit, _ = kzg4844.BlobToCommitment(&emptyBlob)
+	emptyBlobProof, _  = kzg4844.ComputeBlobProof(&emptyBlob, emptyBlobCommit)
+	emptyBlobHash      = kzg4844.CalcBlobHashV1(sha256.New(), &emptyBlobCommit)
+)
 
 func TestRPCGetBlockOrHeader(t *testing.T) {
 	t.Parallel()
@@ -2663,9 +2592,17 @@ func TestRPCGetBlockReceipts(t *testing.T) {
 	t.Parallel()
 
 	var (
-		genBlocks  = 6
-		backend, _ = setupReceiptBackend(t, genBlocks)
-		api        = NewBlockChainAPI(backend)
+		accounts = newAccounts(2)
+		genesis  = &core.Genesis{
+			Config: params.TestChainConfig,
+			Alloc: core.GenesisAlloc{
+				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
+				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
+			},
+		}
+		genBlocks = 6
+		backend   = newTestBackend(t, genBlocks, genesis, ethash.NewFaker(), func(i int, b *core.BlockGen) {})
+		api       = NewPublicBlockChainAPI(backend)
 	)
 	blockHashes := make([]common.Hash, genBlocks+1)
 	ctx := context.Background()
@@ -2776,4 +2713,58 @@ func testRPCResponseWithFile(t *testing.T, testid int, result interface{}, rpc s
 
 func addressToHash(a common.Address) common.Hash {
 	return common.BytesToHash(a.Bytes())
+}
+
+func newBytes(b []byte) *hexutil.Bytes {
+	rpcBytes := hexutil.Bytes(b)
+	return &rpcBytes
+}
+
+func newUint64(v uint64) *hexutil.Uint64 {
+	rpcUint64 := hexutil.Uint64(v)
+	return &rpcUint64
+}
+
+func uint256ToBytes(v *uint256.Int) *hexutil.Bytes {
+	b := v.Bytes32()
+	r := hexutil.Bytes(b[:])
+	return &r
+}
+
+type account struct {
+	key  *ecdsa.PrivateKey
+	addr common.Address
+}
+
+func newAccounts(n int) (accounts []account) {
+	for i := 0; i < n; i++ {
+		key, _ := crypto.GenerateKey()
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		accounts = append(accounts, account{key: key, addr: addr})
+	}
+	slices.SortFunc(accounts, func(a, b account) int { return a.addr.Cmp(b.addr) })
+	return accounts
+}
+
+func newTestAccount() account {
+	// testKey is a private key to use for funding a tester account.
+	key, _ := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
+	// testAddr is the Ethereum address of the tester account.
+	addr := crypto.PubkeyToAddress(key.PublicKey)
+	return account{key: key, addr: addr}
+}
+
+func newRPCBalance(balance *big.Int) *hexutil.Big {
+	rpcBalance := (*hexutil.Big)(balance)
+	return rpcBalance
+}
+
+func hex2Bytes(str string) *hexutil.Bytes {
+	rpcBytes := hexutil.Bytes(common.Hex2Bytes(str))
+	return &rpcBytes
+}
+
+func newRPCBytes(bytes []byte) *hexutil.Bytes {
+	rpcBytes := hexutil.Bytes(bytes)
+	return &rpcBytes
 }
