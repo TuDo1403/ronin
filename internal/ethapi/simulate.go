@@ -177,6 +177,7 @@ func (sim *simulator) processBlock(ctx context.Context, block *simBlock, header,
 	if err := block.StateOverrides.Apply(sim.state, precompiles); err != nil {
 		return nil, nil, err
 	}
+
 	var (
 		gasUsed, blobGasUsed uint64
 		txes                 = make([]*types.Transaction, len(block.Calls))

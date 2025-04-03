@@ -311,13 +311,16 @@ func (st *StateTransition) preCheck() error {
 				msg.From().Hex(), stNonce)
 		}
 	}
-	if !msg.SkipFromEOACheck {
-		// Make sure the sender is an EOA
-		if codeHash := st.state.GetCodeHash(msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
-			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
-				msg.From().Hex(), codeHash)
-		}
-	}
+
+	// TODO: Support SkipFromEOACheck later
+	// if !msg.SkipFromEOACheck {
+	// 	// Make sure the sender is an EOA
+	// 	if codeHash := st.state.GetCodeHash(msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
+	// 		return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
+	// 			msg.From().Hex(), codeHash)
+	// 	}
+	// }
+
 	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
 	if !st.evm.Config.IsSystemTransaction && st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
 		// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)

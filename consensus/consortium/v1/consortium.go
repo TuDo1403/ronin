@@ -26,10 +26,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/hashicorp/golang-lru/arc/v2"
 	"golang.org/x/crypto/sha3"
 
@@ -39,11 +35,15 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	consortiumCommon "github.com/ethereum/go-ethereum/consensus/consortium/common"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -512,7 +512,8 @@ func (c *Consortium) Prepare(chain consensus.ChainHeaderReader, header *types.He
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given.
 func (c *Consortium) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs *[]*types.Transaction,
-	uncles []*types.Header, receipts *[]*types.Receipt, systemTxs *[]*types.Transaction, internalTxs *[]*types.InternalTransaction, usedGas *uint64) error {
+	uncles []*types.Header, receipts *[]*types.Receipt, systemTxs *[]*types.Transaction, internalTxs *[]*types.InternalTransaction, usedGas *uint64,
+) error {
 	lastBlockInV1 := c.chainConfig.IsOnConsortiumV2(new(big.Int).Add(header.Number, common.Big1))
 	if (len(*systemTxs) > 0 && !lastBlockInV1) || (len(*systemTxs) == 0 && lastBlockInV1) {
 		return errors.New("the length of systemTxs does not match")
@@ -555,7 +556,8 @@ func (c *Consortium) Finalize(chain consensus.ChainHeaderReader, header *types.H
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
 func (c *Consortium) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
-	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, []*types.Receipt, error) {
+	uncles []*types.Header, receipts []*types.Receipt,
+) (*types.Block, []*types.Receipt, error) {
 	// No block rewards in PoA, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)

@@ -26,7 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -124,8 +123,8 @@ func TestStateProcessorErrors(t *testing.T) {
 					},
 				},
 			}
-			genesis       = gspec.MustCommit(db, trie.NewDatabase(db, newDbConfig(rawdb.HashScheme)))
-			blockchain, _ = NewBlockChain(db, nil, gspec, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+			blockchain, _  = NewBlockChain(db, nil, gspec, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+			tooBigInitCode = [params.MaxInitCodeSize + 1]byte{}
 		)
 		defer blockchain.Stop()
 		bigNumber := new(big.Int).SetBytes(common.FromHex("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
@@ -248,8 +247,8 @@ func TestStateProcessorErrors(t *testing.T) {
 				want: "could not apply tx 0 [0x6c11015985ce82db691d7b2d017acda296db88b811c3c60dc71449c76256c716]: max fee per gas less than block base fee: address 0x71562b71999873DB5b286dF957af199Ec94617F7, maxFeePerGas: 1, baseFee: 875000000",
 			},
 		} {
-			block := GenerateBadBlock(gspec.ToBlock(), beacon.New(ethash.NewFaker()), tt.txs, gspec.Config)
-			_, err := blockchain.InsertChain(types.Blocks{block})
+			block := GenerateBadBlock(gspec.ToBlock(), ethash.NewFaker(), tt.txs, gspec.Config)
+			_, err := blockchain.InsertChain(types.Blocks{block}, nil)
 			if err == nil {
 				t.Fatal("block imported without errors")
 			}
