@@ -44,9 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
-var (
-	londonBlock = big.NewInt(30) // Predefined london fork block for activating eip 1559.
-)
+var londonBlock = big.NewInt(30) // Predefined london fork block for activating eip 1559.
 
 func main() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
@@ -162,7 +160,7 @@ func makeTransaction(nonce uint64, privKey *ecdsa.PrivateKey, signer types.Signe
 
 	// Feecap and feetip are limited to 32 bytes. Offer a sightly
 	// larger buffer for creating both valid and invalid transactions.
-	var buf = make([]byte, 32+5)
+	buf := make([]byte, 32+5)
 	rand.Read(buf)
 	gasTipCap := new(big.Int).SetBytes(buf)
 
@@ -207,7 +205,7 @@ func makeGenesis(faucets []*ecdsa.PrivateKey) *core.Genesis {
 	genesis.Config.ChainID = big.NewInt(18)
 	genesis.Config.EIP150Hash = common.Hash{}
 
-	genesis.Alloc = core.GenesisAlloc{}
+	genesis.Alloc = types.GenesisAlloc{}
 	for _, faucet := range faucets {
 		genesis.Alloc[crypto.PubkeyToAddress(faucet.PublicKey)] = core.GenesisAccount{
 			Balance: new(big.Int).Exp(big.NewInt(2), big.NewInt(128), nil),

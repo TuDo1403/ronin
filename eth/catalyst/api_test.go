@@ -47,7 +47,7 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 	config := params.AllEthashProtocolChanges
 	genesis := &core.Genesis{
 		Config:    config,
-		Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
+		Alloc:     types.GenesisAlloc{testAddr: {Balance: testBalance}},
 		ExtraData: []byte("test genesis"),
 		Timestamp: 9000,
 		BaseFee:   big.NewInt(params.InitialBaseFee),
@@ -89,7 +89,7 @@ func generateTestChainWithFork(n int, fork int) (*core.Genesis, []*types.Block, 
 	}
 	genesis := &core.Genesis{
 		Config:    config,
-		Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
+		Alloc:     types.GenesisAlloc{testAddr: {Balance: testBalance}},
 		ExtraData: []byte("test genesis"),
 		Timestamp: 9000,
 		BaseFee:   big.NewInt(params.InitialBaseFee),

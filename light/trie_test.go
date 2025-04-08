@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
@@ -39,7 +40,7 @@ func TestNodeIterator(t *testing.T) {
 		lightdb = rawdb.NewMemoryDatabase()
 		gspec   = core.Genesis{
 			Config:  params.TestChainConfig,
-			Alloc:   core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+			Alloc:   types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		genesis = gspec.MustCommit(fulldb, trie.NewDatabase(fulldb, nil))

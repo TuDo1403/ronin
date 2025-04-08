@@ -35,8 +35,6 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/ethereum/go-ethereum/triedb"
-	"github.com/ethereum/go-ethereum/triedb/pathdb"
 )
 
 //go:generate go run github.com/fjl/gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -71,17 +69,7 @@ type Genesis struct {
 }
 
 // hashAlloc computes the state root according to the genesis specification.
-func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
-	// If a genesis-time verkle trie is requested, create a trie config
-	// with the verkle trie enabled so that the tree can be initialized
-	// as such.
-	var config *triedb.Config
-	if isVerkle {
-		config = &triedb.Config{
-			PathDB:   pathdb.Defaults,
-			IsVerkle: true,
-		}
-	}
+func hashAlloc(ga *types.GenesisAlloc) (common.Hash, error) {
 	// Create an ephemeral in-memory database for computing hash,
 	// all the derived states will be discarded to not pollute disk.
 	db := state.NewDatabase(rawdb.NewMemoryDatabase())
@@ -100,23 +88,24 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 	return statedb.Commit(0, false)
 }
 
-// flushAlloc is very similar with deriveHash, but the main difference is
-// all the generated states will be persisted into the given database.
-// Also, the genesis state specification will be flushed as well.
-func flushAlloc(ga *types.GenesisAlloc, db ethdb.Database, triedb *trie.Database) error {
-	statedb, err := state.New(common.Hash{}, state.NewDatabaseWithNodeDB(db, triedb), nil)
+// flushAlloc is very similar with hash, but the main difference is all the generated
+// states will be persisted into the given database. Also, the genesis state
+// specification will be flushed as well.
+func flushAlloc(ga *types.GenesisAlloc, db ethdb.Database, triedb *trie.Database, blockhash common.Hash) error {
+	statedb, err := state.New(types.EmptyRootHash, state.NewDatabaseWithNodeDB(db, triedb), nil)
 	if err != nil {
 		return err
 	}
 	for addr, account := range *ga {
-		statedb.AddBalance(addr, account.Balance)
+		if account.Balance != nil {
+			statedb.AddBalance(addr, account.Balance)
+		}
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
 	}
-	// Commit current state, return the root hash.
 	root, err := statedb.Commit(0, false)
 	if err != nil {
 		return err
@@ -127,60 +116,13 @@ func flushAlloc(ga *types.GenesisAlloc, db ethdb.Database, triedb *trie.Database
 			return err
 		}
 	}
-
 	// Marshal the genesis state specification and persist.
 	blob, err := json.Marshal(ga)
 	if err != nil {
 		return err
 	}
-	rawdb.WriteGenesisStateSpec(db, root, blob)
+	rawdb.WriteGenesisStateSpec(db, blockhash, blob)
 	return nil
-}
-
-// CommitGenesisState loads the stored genesis state with the given block
-// hash and commits it into the provided database handler.
-func CommitGenesisState(db ethdb.Database, triedb *trie.Database, hash common.Hash) error {
-	var alloc GenesisAlloc
-	blob := rawdb.ReadGenesisStateSpec(db, hash)
-	if len(blob) != 0 {
-		if err := alloc.UnmarshalJSON(blob); err != nil {
-			return err
-		}
-	} else {
-		// Genesis allocation is missing and there are several possibilities:
-		// the node is legacy which doesn't persist the genesis allocation or
-		// the persisted allocation is just lost.
-		// - supported networks(mainnet, testnets), recover with defined allocations
-		// - private network, can't recover
-		var genesis *Genesis
-		switch hash {
-		case params.MainnetGenesisHash:
-			genesis = DefaultGenesisBlock()
-		case params.RopstenGenesisHash:
-			genesis = DefaultRopstenGenesisBlock()
-		case params.RinkebyGenesisHash:
-			genesis = DefaultRinkebyGenesisBlock()
-		case params.GoerliGenesisHash:
-			genesis = DefaultGoerliGenesisBlock()
-		case params.SepoliaGenesisHash:
-			genesis = DefaultSepoliaGenesisBlock()
-		}
-		if genesis != nil {
-			alloc = genesis.Alloc
-		} else {
-			return errors.New("not found")
-		}
-	}
-	return alloc.flush(db, triedb)
-}
-
-// GenesisAccount is an account in the state of the genesis block.
-type GenesisAccount struct {
-	Code       []byte                      `json:"code,omitempty"`
-	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
-	Balance    *big.Int                    `json:"balance" gencodec:"required"`
-	Nonce      uint64                      `json:"nonce,omitempty"`
-	PrivateKey []byte                      `json:"secretKey,omitempty"` // for tests
 }
 
 // field type overrides for gencodec
@@ -352,7 +294,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 
 // ToBlock returns the genesis block according to genesis specification.
 func (g *Genesis) ToBlock() *types.Block {
-	root, err := hashAlloc(&g.Alloc, g.IsVerkle())
+	root, err := hashAlloc(&g.Alloc)
 	if err != nil {
 		panic(err)
 	}
@@ -507,7 +449,7 @@ func DeveloperGenesisBlock(period uint64, gasLimit uint64, faucet common.Address
 		GasLimit:   gasLimit,
 		BaseFee:    big.NewInt(params.InitialBaseFee),
 		Difficulty: big.NewInt(1),
-		Alloc: map[common.Address]types.Account{
+		Alloc: map[common.Address]GenesisAccount{
 			common.BytesToAddress([]byte{1}): {Balance: big.NewInt(1)}, // ECRecover
 			common.BytesToAddress([]byte{2}): {Balance: big.NewInt(1)}, // SHA256
 			common.BytesToAddress([]byte{3}): {Balance: big.NewInt(1)}, // RIPEMD
@@ -520,10 +462,6 @@ func DeveloperGenesisBlock(period uint64, gasLimit uint64, faucet common.Address
 			faucet:                           {Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))},
 		},
 	}
-	if faucet != nil {
-		genesis.Alloc[*faucet] = types.Account{Balance: new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 256), big.NewInt(9))}
-	}
-	return genesis
 }
 
 func decodePrealloc(data string) types.GenesisAlloc {

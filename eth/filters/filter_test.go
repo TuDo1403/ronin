@@ -126,7 +126,7 @@ func TestFilters(t *testing.T) {
 		hash4 = common.BytesToHash([]byte("topic4"))
 
 		gspec = core.Genesis{
-			Alloc:   core.GenesisAlloc{addr: {Balance: big.NewInt(1000000)}},
+			Alloc:   types.GenesisAlloc{addr: {Balance: big.NewInt(1000000)}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		genesis = gspec.ToBlock()

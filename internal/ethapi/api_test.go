@@ -669,7 +669,7 @@ func TestEstimateGas(t *testing.T) {
 		accounts = newAccounts(2)
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -784,7 +784,7 @@ func TestCall(t *testing.T) {
 		accounts = newAccounts(3)
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -1072,7 +1072,7 @@ func TestFillBlobTransaction(t *testing.T) {
 		to       = accounts[1].addr
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -1302,7 +1302,7 @@ func TestBlobTransactionApi(t *testing.T) {
 		accounts = newAccounts(2)
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},

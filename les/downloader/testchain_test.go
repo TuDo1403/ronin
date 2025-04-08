@@ -38,7 +38,7 @@ var (
 	testDB      = rawdb.NewMemoryDatabase()
 
 	gspec = core.Genesis{
-		Alloc:   core.GenesisAlloc{testAddress: {Balance: big.NewInt(1000000000000000)}},
+		Alloc:   types.GenesisAlloc{testAddress: {Balance: big.NewInt(1000000000000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	testGenesis = gspec.MustCommit(testDB, trie.NewDatabase(testDB, nil))
@@ -51,7 +51,7 @@ var testChainBase = newTestChain(blockCacheMaxItems+200, testGenesis)
 var testChainForkLightA, testChainForkLightB, testChainForkHeavy *testChain
 
 func init() {
-	var forkLen = int(fullMaxForkAncestry + 50)
+	forkLen := int(fullMaxForkAncestry + 50)
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() { testChainForkLightA = testChainBase.makeFork(forkLen, false, 1); wg.Done() }()

@@ -193,7 +193,7 @@ var (
 
 var genesis = &core.Genesis{
 	Config:    params.TestChainConfig,
-	Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
+	Alloc:     types.GenesisAlloc{testAddr: {Balance: testBalance}},
 	ExtraData: []byte("test genesis"),
 	Timestamp: 9000,
 	BaseFee:   big.NewInt(params.InitialBaseFee),

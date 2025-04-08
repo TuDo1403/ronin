@@ -59,7 +59,7 @@ func makechain() (bc *core.BlockChain, addrHashes, txHashes []common.Hash) {
 	db := rawdb.NewMemoryDatabase()
 	gspec := core.Genesis{
 		Config:   params.TestChainConfig,
-		Alloc:    core.GenesisAlloc{bankAddr: {Balance: bankFunds}},
+		Alloc:    types.GenesisAlloc{bankAddr: {Balance: bankFunds}},
 		GasLimit: 100000000,
 	}
 	genesis := gspec.MustCommit(db, nil)

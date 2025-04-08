@@ -17,10 +17,9 @@
 package eth
 
 import (
+	"crypto/rand"
 	"math/big"
 	"sync"
-
-	"crypto/rand"
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	gokzg4844 "github.com/crate-crypto/go-kzg-4844"
@@ -232,7 +231,7 @@ func newTestHandlerWithBlocks100(blocks int) (*testHandler, []*types.BlobTxSidec
 	engine := ethash.NewFaker()
 	gspec := &core.Genesis{
 		Config: &chainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			address: {
 				Balance: big.NewInt(1000000000),
 			},

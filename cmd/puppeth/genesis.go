@@ -175,25 +175,41 @@ func newAlethGenesisSpec(network string, genesis *core.Genesis) (*alethGenesisSp
 		spec.setAccount(address, account)
 	}
 
-	spec.setPrecompile(1, &alethGenesisSpecBuiltin{Name: "ecrecover",
-		Linear: &alethGenesisSpecLinearPricing{Base: 3000}})
-	spec.setPrecompile(2, &alethGenesisSpecBuiltin{Name: "sha256",
-		Linear: &alethGenesisSpecLinearPricing{Base: 60, Word: 12}})
-	spec.setPrecompile(3, &alethGenesisSpecBuiltin{Name: "ripemd160",
-		Linear: &alethGenesisSpecLinearPricing{Base: 600, Word: 120}})
-	spec.setPrecompile(4, &alethGenesisSpecBuiltin{Name: "identity",
-		Linear: &alethGenesisSpecLinearPricing{Base: 15, Word: 3}})
+	spec.setPrecompile(1, &alethGenesisSpecBuiltin{
+		Name:   "ecrecover",
+		Linear: &alethGenesisSpecLinearPricing{Base: 3000},
+	})
+	spec.setPrecompile(2, &alethGenesisSpecBuiltin{
+		Name:   "sha256",
+		Linear: &alethGenesisSpecLinearPricing{Base: 60, Word: 12},
+	})
+	spec.setPrecompile(3, &alethGenesisSpecBuiltin{
+		Name:   "ripemd160",
+		Linear: &alethGenesisSpecLinearPricing{Base: 600, Word: 120},
+	})
+	spec.setPrecompile(4, &alethGenesisSpecBuiltin{
+		Name:   "identity",
+		Linear: &alethGenesisSpecLinearPricing{Base: 15, Word: 3},
+	})
 	if genesis.Config.ByzantiumBlock != nil {
-		spec.setPrecompile(5, &alethGenesisSpecBuiltin{Name: "modexp",
-			StartingBlock: (*hexutil.Big)(genesis.Config.ByzantiumBlock)})
-		spec.setPrecompile(6, &alethGenesisSpecBuiltin{Name: "alt_bn128_G1_add",
+		spec.setPrecompile(5, &alethGenesisSpecBuiltin{
+			Name:          "modexp",
 			StartingBlock: (*hexutil.Big)(genesis.Config.ByzantiumBlock),
-			Linear:        &alethGenesisSpecLinearPricing{Base: 500}})
-		spec.setPrecompile(7, &alethGenesisSpecBuiltin{Name: "alt_bn128_G1_mul",
+		})
+		spec.setPrecompile(6, &alethGenesisSpecBuiltin{
+			Name:          "alt_bn128_G1_add",
 			StartingBlock: (*hexutil.Big)(genesis.Config.ByzantiumBlock),
-			Linear:        &alethGenesisSpecLinearPricing{Base: 40000}})
-		spec.setPrecompile(8, &alethGenesisSpecBuiltin{Name: "alt_bn128_pairing_product",
-			StartingBlock: (*hexutil.Big)(genesis.Config.ByzantiumBlock)})
+			Linear:        &alethGenesisSpecLinearPricing{Base: 500},
+		})
+		spec.setPrecompile(7, &alethGenesisSpecBuiltin{
+			Name:          "alt_bn128_G1_mul",
+			StartingBlock: (*hexutil.Big)(genesis.Config.ByzantiumBlock),
+			Linear:        &alethGenesisSpecLinearPricing{Base: 40000},
+		})
+		spec.setPrecompile(8, &alethGenesisSpecBuiltin{
+			Name:          "alt_bn128_pairing_product",
+			StartingBlock: (*hexutil.Big)(genesis.Config.ByzantiumBlock),
+		})
 	}
 	if genesis.Config.IstanbulBlock != nil {
 		if genesis.Config.ByzantiumBlock == nil {
@@ -238,7 +254,6 @@ func (spec *alethGenesisSpec) setAccount(address common.Address, account core.Ge
 	}
 	a.Balance = (*math2.HexOrDecimal256)(account.Balance)
 	a.Nonce = account.Nonce
-
 }
 
 // parityChainSpec is the chain specification format used by Parity.
@@ -458,8 +473,10 @@ func newParityChainSpec(network string, genesis *core.Genesis, bootnodes []strin
 			Nonce:   math2.HexOrDecimal64(account.Nonce),
 		}
 	}
-	spec.setPrecompile(1, &parityChainSpecBuiltin{Name: "ecrecover",
-		Pricing: &parityChainSpecPricing{Linear: &parityChainSpecLinearPricing{Base: 3000}}})
+	spec.setPrecompile(1, &parityChainSpecBuiltin{
+		Name:    "ecrecover",
+		Pricing: &parityChainSpecPricing{Linear: &parityChainSpecLinearPricing{Base: 3000}},
+	})
 
 	spec.setPrecompile(2, &parityChainSpecBuiltin{
 		Name: "sha256", Pricing: &parityChainSpecPricing{Linear: &parityChainSpecLinearPricing{Base: 60, Word: 12}},
@@ -609,15 +626,15 @@ func (spec *parityChainSpec) setIstanbul(num *big.Int) {
 // pyEthereumGenesisSpec represents the genesis specification format used by the
 // Python Ethereum implementation.
 type pyEthereumGenesisSpec struct {
-	Nonce      types.BlockNonce  `json:"nonce"`
-	Timestamp  hexutil.Uint64    `json:"timestamp"`
-	ExtraData  hexutil.Bytes     `json:"extraData"`
-	GasLimit   hexutil.Uint64    `json:"gasLimit"`
-	Difficulty *hexutil.Big      `json:"difficulty"`
-	Mixhash    common.Hash       `json:"mixhash"`
-	Coinbase   common.Address    `json:"coinbase"`
-	Alloc      core.GenesisAlloc `json:"alloc"`
-	ParentHash common.Hash       `json:"parentHash"`
+	Nonce      types.BlockNonce   `json:"nonce"`
+	Timestamp  hexutil.Uint64     `json:"timestamp"`
+	ExtraData  hexutil.Bytes      `json:"extraData"`
+	GasLimit   hexutil.Uint64     `json:"gasLimit"`
+	Difficulty *hexutil.Big       `json:"difficulty"`
+	Mixhash    common.Hash        `json:"mixhash"`
+	Coinbase   common.Address     `json:"coinbase"`
+	Alloc      types.GenesisAlloc `json:"alloc"`
+	ParentHash common.Hash        `json:"parentHash"`
 }
 
 // newPyEthereumGenesisSpec converts a go-ethereum genesis block into a Parity specific

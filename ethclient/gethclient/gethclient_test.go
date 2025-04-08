@@ -75,7 +75,7 @@ func generateTestChain() (*core.Genesis, []*types.Block) {
 	config := params.AllEthashProtocolChanges
 	genesis := &core.Genesis{
 		Config:    config,
-		Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
+		Alloc:     types.GenesisAlloc{testAddr: {Balance: testBalance}},
 		ExtraData: []byte("test genesis"),
 		Timestamp: 9000,
 	}

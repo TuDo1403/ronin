@@ -281,7 +281,7 @@ func createGQLServiceWithTransactions(t *testing.T, stack *node.Node) {
 			Config:     params.AllEthashProtocolChanges,
 			GasLimit:   11500000,
 			Difficulty: big.NewInt(1048576),
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				address: {Balance: funds},
 				// The address 0xdad sloads 0x00 and 0x01
 				dad: {

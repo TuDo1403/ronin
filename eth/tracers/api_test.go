@@ -90,7 +90,7 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i i
 		t.Fatal(genesisErr.Error())
 	}
 
-	//chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit
+	// chainDb, cacheConfig, chainConfig, eth.engine, vmConfig, eth.shouldPreserve, &config.TxLookupLimit
 	chain, err := core.NewBlockChain(backend.chaindb, cacheConfig, gspec, nil, backend.engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
@@ -220,7 +220,7 @@ func TestTraceCall(t *testing.T) {
 	})
 	defer backend.teardown()
 	api := NewAPI(backend)
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		call        ethapi.TransactionArgs
 		config      *TraceCallConfig
@@ -261,7 +261,7 @@ func TestTraceCall(t *testing.T) {
 			},
 			config:    nil,
 			expectErr: fmt.Errorf("block #%d not found", genBlocks+1),
-			//expect:    nil,
+			// expect:    nil,
 		},
 		// Standard JSON trace upon the latest block
 		{
@@ -404,7 +404,7 @@ func TestTraceBlock(t *testing.T) {
 	defer backend.chain.Stop()
 	api := NewAPI(backend)
 
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		config      *TraceConfig
 		want        string
@@ -473,7 +473,7 @@ func testTraceInternalsAndAccounts_BatchTransferAccounts(t *testing.T, enabledVe
 		chainConfig.VenokiBlock = big.NewInt(0)
 	}
 
-	genesis := &core.Genesis{Alloc: core.GenesisAlloc{
+	genesis := &core.Genesis{Alloc: types.GenesisAlloc{
 		accounts[0].addr: {
 			// Contract code
 			// // SPDX-License-Identifier: MIT
@@ -624,7 +624,7 @@ func testTraceInternalsAndAccounts_BatchTransferAccounts(t *testing.T, enabledVe
 
 func TestTraceInternalsAndAccounts_CreateContract(t *testing.T) {
 	accounts := newAccounts(2)
-	genesis := &core.Genesis{Alloc: core.GenesisAlloc{
+	genesis := &core.Genesis{Alloc: types.GenesisAlloc{
 		accounts[0].addr: {
 			// Contract code
 			// // SPDX-License-Identifier: MIT
@@ -730,7 +730,7 @@ func TestTraceInternalsAndAccounts_CreateContract(t *testing.T) {
 
 func TestTraceInternalsAndAccounts_Create2Contract(t *testing.T) {
 	accounts := newAccounts(2)
-	genesis := &core.Genesis{Alloc: core.GenesisAlloc{
+	genesis := &core.Genesis{Alloc: types.GenesisAlloc{
 		accounts[0].addr: {
 			// Contract code
 			// // SPDX-License-Identifier: MIT
@@ -872,7 +872,7 @@ func TestTracingWithOverrides(t *testing.T) {
 		Failed      bool
 		ReturnValue string
 	}
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		call        ethapi.TransactionArgs
 		config      *TraceCallConfig
@@ -929,7 +929,7 @@ func TestTracingWithOverrides(t *testing.T) {
 				Data: newRPCBytes(common.Hex2Bytes("8381f58a")), // call number()
 			},
 			config: &TraceCallConfig{
-				//Tracer: &tracer,
+				// Tracer: &tracer,
 				StateOverrides: &ethapi.StateOverride{
 					randomAccounts[2].addr: ethapi.OverrideAccount{
 						Code:      newRPCBytes(common.Hex2Bytes("6080604052348015600f57600080fd5b506004361060285760003560e01c80638381f58a14602d575b600080fd5b60336049565b6040518082815260200191505060405180910390f35b6000548156fea2646970667358221220eab35ffa6ab2adfe380772a48b8ba78e82a1b820a18fcb6f59aa4efb20a5f60064736f6c63430007040033")),
@@ -1022,7 +1022,7 @@ func TestTracingWithOverrides(t *testing.T) {
 				},
 			},
 			want: `{"gas":46900,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000539"}`,
-			//want: `{"gas":44100,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000001"}`,
+			// want: `{"gas":44100,"failed":false,"returnValue":"0000000000000000000000000000000000000000000000000000000000000001"}`,
 		},
 		{ // No state override
 			blockNumber: rpc.LatestBlockNumber,
@@ -1046,7 +1046,7 @@ func TestTracingWithOverrides(t *testing.T) {
 							byte(vm.MSTORE),
 							// RETURN (0, 32)
 							byte(vm.PUSH1), 32,
-							byte(vm.PUSH1), 00,
+							byte(vm.PUSH1), 0o0,
 							byte(vm.RETURN),
 						}),
 					},
@@ -1081,7 +1081,7 @@ func TestTracingWithOverrides(t *testing.T) {
 							byte(vm.MSTORE),
 							// RETURN (0, 32)
 							byte(vm.PUSH1), 32,
-							byte(vm.PUSH1), 00,
+							byte(vm.PUSH1), 0o0,
 							byte(vm.RETURN),
 						}),
 						State: newStates(
@@ -1119,7 +1119,7 @@ func TestTracingWithOverrides(t *testing.T) {
 							byte(vm.MSTORE),
 							// RETURN (0, 32)
 							byte(vm.PUSH1), 32,
-							byte(vm.PUSH1), 00,
+							byte(vm.PUSH1), 0o0,
 							byte(vm.RETURN),
 						}),
 						StateDiff: &map[common.Hash]common.Hash{
@@ -1238,7 +1238,7 @@ func TestTraceChain(t *testing.T) {
 	api := NewAPI(backend)
 
 	single := `{"result":{"gas":21000,"failed":false,"returnValue":"","structLogs":[]}}`
-	var cases = []struct {
+	cases := []struct {
 		start  uint64
 		end    uint64
 		config *TraceConfig

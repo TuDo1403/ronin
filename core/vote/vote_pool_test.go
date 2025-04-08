@@ -98,7 +98,7 @@ func testVotePool(t *testing.T, isValidRules bool) {
 	db := rawdb.NewMemoryDatabase()
 	gspec := &core.Genesis{
 		Config:  params.TestChainConfig,
-		Alloc:   core.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
+		Alloc:   types.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genesis := gspec.MustCommit(db, trie.NewDatabase(db, trie.HashDefaults))
@@ -123,9 +123,7 @@ func testVotePool(t *testing.T, isValidRules bool) {
 	file.Close()
 	os.Remove(journal)
 
-	var (
-		voteManager *VoteManager
-	)
+	var voteManager *VoteManager
 	if isValidRules {
 		voteManager, err = NewVoteManager(newTestBackend(), db, params.TestChainConfig, chain, votePool, true, walletPasswordDir, walletDir, mockEngine, nil)
 	} else {
@@ -322,13 +320,13 @@ func testVotePool(t *testing.T, isValidRules bool) {
 func setUpKeyManager(t *testing.T) (string, string) {
 	walletDir := filepath.Join(t.TempDir(), "wallet")
 	walletPasswordDir := filepath.Join(t.TempDir(), "password")
-	if err := os.MkdirAll(filepath.Dir(walletPasswordDir), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(walletPasswordDir), 0o700); err != nil {
 		t.Fatalf("failed to create walletPassword dir: %v", err)
 	}
-	if err := ioutil.WriteFile(walletPasswordDir, []byte(password), 0600); err != nil {
+	if err := ioutil.WriteFile(walletPasswordDir, []byte(password), 0o600); err != nil {
 		t.Fatalf("failed to write wallet password dir: %v", err)
 	}
-	if err := os.MkdirAll(walletDir, 0700); err != nil {
+	if err := os.MkdirAll(walletDir, 0o700); err != nil {
 		t.Fatalf("failed to create wallet dir: %v", err)
 	}
 	w, err := wallet.New(walletDir, walletPasswordDir)
@@ -394,7 +392,7 @@ func TestVotePoolDosProtection(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 	gspec := &core.Genesis{
 		Config:  params.TestChainConfig,
-		Alloc:   core.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
+		Alloc:   types.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genesis := gspec.MustCommit(db, trie.NewDatabase(db, trie.HashDefaults))
@@ -493,7 +491,7 @@ func testVotePoolPruneFutureVoteCounter(t *testing.T, scheme string) {
 
 	gspec := &core.Genesis{
 		Config:  params.TestChainConfig,
-		Alloc:   core.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
+		Alloc:   types.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genesis := gspec.MustCommit(db, trie.NewDatabase(db, nil))
@@ -593,7 +591,7 @@ func TestVotePoolWrongTargetNumber(t *testing.T) {
 	db := rawdb.NewMemoryDatabase()
 	gspec := &core.Genesis{
 		Config:  params.TestChainConfig,
-		Alloc:   core.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
+		Alloc:   types.GenesisAlloc{testAddr: {Balance: big.NewInt(1000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genesis := gspec.MustCommit(db, trie.NewDatabase(db, trie.HashDefaults))

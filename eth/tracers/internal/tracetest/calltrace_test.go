@@ -349,7 +349,7 @@ func TestInternals(t *testing.T) {
 		},
 	} {
 		triedb, _, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(),
-			core.GenesisAlloc{
+			types.GenesisAlloc{
 				to: core.GenesisAccount{
 					Code: tc.code,
 				},

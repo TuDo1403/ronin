@@ -40,7 +40,7 @@ var (
 	testAddress = crypto.PubkeyToAddress(testKey.PublicKey)
 
 	gspec = core.Genesis{
-		Alloc:   core.GenesisAlloc{testAddress: {Balance: big.NewInt(1000000000000000)}},
+		Alloc:   types.GenesisAlloc{testAddress: {Balance: big.NewInt(1000000000000000)}},
 		BaseFee: big.NewInt(params.InitialBaseFee),
 	}
 	genesis      = gspec.MustCommit(testdb, trie.NewDatabase(testdb, nil))
