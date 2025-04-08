@@ -58,7 +58,10 @@ ios:
 	@echo "Import \"$(GOBIN)/Geth.framework\" to use the library."
 
 test: all
-	$(GORUN) build/ci.go test --coverage
+	$(GORUN) build/ci.go test
+
+test-coverage: all
+	$(GORUN) build/ci.go test -coverage
 
 lint: ## Run linters.
 	$(GORUN) build/ci.go lint

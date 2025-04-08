@@ -1,0 +1,123 @@
+name: Run Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    if: false # TODO: Enable linting once we fix all lint errors
+    runs-on: ubuntu-latest
+    name: Run code linting
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.10'
+
+      - name: Run code linting
+        run:
+          make lint
+
+  test:
+    runs-on: ubuntu-latest
+    name: Run tests with coverage
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c #v3.3.0
+        with:
+          fetch-depth: 2
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.10'
+
+      - name: Run tests with coverage
+        id: coverage
+        env:
+          CFLAGS: "-O -D__BLST_PORTABLE__"
+          GOBIN: "./build/bin"
+        run: |
+          # Run tests with coverage
+          CGO_CFLAGS_ALLOW="$CFLAGS" CGO_CFLAGS="$CFLAGS" go test -covermode=set -coverprofile cover.out ./... -tags=blst_enabled,ckzg
+
+          # For PRs, show coverage for changed lines
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::group::Coverage for Changed Lines"
+            
+            # Get changed files using GitHub's GITHUB_SHA and base SHA
+            if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+              # PR context - use PR base and head SHAs directly
+              BASE_SHA="${{ github.event.pull_request.base.sha }}"
+              HEAD_SHA="${{ github.sha }}"
+              git fetch --depth=1 origin $BASE_SHA
+              CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA | grep '\.go$' || echo "")
+            else
+              # Push context - compare with previous commit
+              CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep '\.go$' || echo "")
+            fi
+            
+            if [ -n "$CHANGED_FILES" ]; then
+              echo "Changed Go files:"
+              echo "$CHANGED_FILES"
+              echo ""
+              
+              # Filter coverage file to only include changed files
+              if [ -f "cover.out" ]; then
+                # Add the mode line to the filtered coverage file
+                head -n 1 cover.out > cover.filtered.out
+                
+                # For each changed file, find its entries in the coverage file
+                for file in $CHANGED_FILES; do
+                  echo "Filtering coverage for file: $file"
+                  
+                  # Extract just the filename without path
+                  filename=$(basename "$file")
+                  echo "  Looking for filename: $filename"
+                  
+                  # Various ways to match the file in coverage data
+                  grep -F "/$filename:" cover.out | head -n 3 || echo "  No direct filename matches"
+                  grep -F "/$filename:" cover.out >> cover.filtered.out || true
+                  
+                  # Try with full path match (both with and without leading slash)
+                  grep -F "$file:" cover.out | head -n 3 || echo "  No full path matches"
+                  grep -F "$file:" cover.out >> cover.filtered.out || true
+                  
+                  grep -F "/$file:" cover.out | head -n 3 || echo "  No full path with slash matches"
+                  grep -F "/$file:" cover.out >> cover.filtered.out || true
+                done
+                
+                # Generate HTML report for filtered coverage
+                go tool cover -html=cover.filtered.out -o coverage.html
+                echo "Generated filtered coverage report: coverage.html"
+              else
+                echo "No coverage file found"
+              fi
+            else
+              echo "No Go files changed in this PR"
+            fi
+            
+            echo "::endgroup::"
+          fi
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.html
+            coverage.filtered.html
+          retention-days: 1
