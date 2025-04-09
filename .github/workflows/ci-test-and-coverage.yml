@@ -103,6 +103,28 @@ jobs:
                 # Generate HTML report for filtered coverage
                 go tool cover -html=cover.filtered.out -o coverage.html
                 echo "Generated filtered coverage report: coverage.html"
+
+                # Generate markdown report for changed files
+                echo "## Code Coverage Report" > coverage.md
+                echo "| File | Coverage |" >> coverage.md
+                echo "|------|----------|" >> coverage.md
+
+                # For each changed file, get its coverage percentage
+                for file in $CHANGED_FILES; do
+                  # Get coverage percentage using go tool cover, taking only the first match
+                  coverage=$(go tool cover -func=cover.filtered.out | grep "$file" | head -n 1 | awk '{print $3}' || echo "N/A")
+                  # Only add to report if file exists and has content
+                  if [ -s "$file" ] && [ "$coverage" != "N/A" ] && [ -n "$coverage" ]; then
+                    echo "| $file | $coverage |" >> coverage.md
+                  fi
+                done
+
+                # Add a summary if no valid coverage data was found
+                if [ ! -s coverage.md ] || [ $(wc -l < coverage.md) -le 3 ]; then
+                  echo "No coverage data available for changed files." >> coverage.md
+                fi
+
+                echo "Generated markdown coverage report: coverage.md"
               else
                 echo "No coverage file found"
               fi
@@ -118,6 +140,20 @@ jobs:
         with:
           name: coverage-report
           path: |
-            coverage.html
             coverage.filtered.html
+            coverage.md
           retention-days: 1
+
+      - name: Post Coverage Report as PR Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('coverage.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
