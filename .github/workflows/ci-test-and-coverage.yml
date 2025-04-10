@@ -32,9 +32,13 @@ jobs:
         env:
           CFLAGS: "-O -D__BLST_PORTABLE__"
           GOBIN: "./build/bin"
+          COVERAGE_THRESHOLD: 50
         run: |
           # Run tests with coverage
           CGO_CFLAGS_ALLOW="$CFLAGS" CGO_CFLAGS="$CFLAGS" go test -covermode=set -coverprofile cover.out ./... -tags=blst_enabled,ckzg
+          total_coverage=$(go tool cover -func=cover.out | grep total: | awk '{print $3}')
+          # Remove percentage sign for numeric comparison
+          total_coverage_num=${total_coverage%\%}
 
           # For PRs, show coverage for changed lines
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
@@ -87,7 +91,17 @@ jobs:
                 echo "Generated filtered coverage report: coverage.html"
 
                 # Generate markdown report for changed files
-                echo "## Code Coverage Report" > coverage.md
+                echo "## 📊 Code Coverage Report" > coverage.md
+                
+                # If total coverage is less than threshold, add a warning icon, else add a checkmark icon
+                if [ $total_coverage_num -lt $COVERAGE_THRESHOLD ]; then
+                  echo "⚠️ Total coverage: $total_coverage (Below threshold of ${COVERAGE_THRESHOLD}%)" >> coverage.md
+                else
+                  echo "✅ Total coverage: $total_coverage (Above threshold of ${COVERAGE_THRESHOLD}%)" >> coverage.md
+                fi
+                
+                echo "" >> coverage.md
+                echo "### 📑 Detailed coverage report:" >> coverage.md
                 echo "| File | Coverage |" >> coverage.md
                 echo "|------|----------|" >> coverage.md
 
@@ -95,6 +109,7 @@ jobs:
                 for file in $CHANGED_FILES; do
                   # Get coverage percentage using go tool cover, taking only the first match
                   coverage=$(go tool cover -func=cover.filtered.out | grep "$file" | head -n 1 | awk '{print $3}' || echo "N/A")
+                  
                   # Only add to report if file exists and has content
                   if [ -s "$file" ] && [ "$coverage" != "N/A" ] && [ -n "$coverage" ]; then
                     echo "| $file | $coverage |" >> coverage.md
@@ -122,8 +137,10 @@ jobs:
         with:
           name: coverage-report
           path: |
-            coverage.filtered.html
+            coverage.html
             coverage.md
+            cover.out
+            cover.filtered.out
           retention-days: 1
 
       - name: Post Coverage Report as PR Comment
