@@ -325,9 +325,7 @@ func doTest(cmdline []string) {
 
 // doLint runs golangci-lint on requested packages.
 func doLint(cmdline []string) {
-	var (
-		cachedir = flag.String("cachedir", "./build/cache", "directory for caching golangci-lint binary.")
-	)
+	cachedir := flag.String("cachedir", "./build/cache", "directory for caching golangci-lint binary.")
 	flag.CommandLine.Parse(cmdline)
 	packages := []string{"./..."}
 	if len(flag.CommandLine.Args()) > 0 {
@@ -342,12 +340,23 @@ func doLint(cmdline []string) {
 
 // downloadLinter downloads and unpacks golangci-lint.
 func downloadLinter(cachedir string) string {
-	const version = "1.42.0"
-
 	csdb := build.MustLoadChecksums("build/checksums.txt")
-	base := fmt.Sprintf("golangci-lint-%s-%s-%s", version, runtime.GOOS, runtime.GOARCH)
-	url := fmt.Sprintf("https://github.com/golangci/golangci-lint/releases/download/v%s/%s.tar.gz", version, base)
-	archivePath := filepath.Join(cachedir, base+".tar.gz")
+	version, err := build.Version(csdb, "golangci")
+	if err != nil {
+		log.Fatal(err)
+	}
+	arch := runtime.GOARCH
+	ext := ".tar.gz"
+
+	if runtime.GOOS == "windows" {
+		ext = ".zip"
+	}
+	if arch == "arm" {
+		arch += "v" + os.Getenv("GOARM")
+	}
+	base := fmt.Sprintf("golangci-lint-%s-%s-%s", version, runtime.GOOS, arch)
+	url := fmt.Sprintf("https://github.com/golangci/golangci-lint/releases/download/v%s/%s%s", version, base, ext)
+	archivePath := filepath.Join(cachedir, base+ext)
 	if err := csdb.DownloadFile(url, archivePath); err != nil {
 		log.Fatal(err)
 	}
