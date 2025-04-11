@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts/checkpointoracle/contract"
-	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -70,7 +70,8 @@ var (
 // validateOperation executes the operation, watches and delivers all events fired by the backend and ensures the
 // correctness by assert function.
 func validateOperation(t *testing.T, c *contract.CheckpointOracle, backend *backends.SimulatedBackend, operation func(),
-	assert func(<-chan *contract.CheckpointOracleNewCheckpointVote) error, opName string) {
+	assert func(<-chan *contract.CheckpointOracleNewCheckpointVote) error, opName string,
+) {
 	// Watch all events and deliver them to assert function
 	var (
 		sink   = make(chan *contract.CheckpointOracleNewCheckpointVote)
@@ -176,7 +177,7 @@ func TestCheckpointRegister(t *testing.T) {
 
 	// Deploy registrar contract
 	contractBackend := backends.NewSimulatedBackend(
-		core.GenesisAlloc{
+		types.GenesisAlloc{
 			accounts[0].addr: {Balance: big.NewInt(10000000000000000)},
 			accounts[1].addr: {Balance: big.NewInt(10000000000000000)},
 			accounts[2].addr: {Balance: big.NewInt(10000000000000000)},

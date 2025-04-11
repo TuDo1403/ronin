@@ -41,9 +41,7 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 )
 
-var (
-	deadline = 5 * time.Minute
-)
+var deadline = 5 * time.Minute
 
 type testBackend struct {
 	mux             *event.TypeMux

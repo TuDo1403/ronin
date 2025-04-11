@@ -590,9 +590,9 @@ func mockExtraData(nVal int, bits uint32) *finality.HeaderExtraData {
 				}
 			case 4:
 				ret.BlockProducers = []common.Address{
-					common.Address{0x11},
-					common.Address{0x22},
-					common.Address{0x33},
+					{0x11},
+					{0x22},
+					{0x33},
 				}
 			case 5:
 				ret.BlockProducersBitSet = finality.BitSet(mrand.Uint64())
@@ -1037,25 +1037,25 @@ func TestGetCheckpointValidatorFromContract(t *testing.T) {
 
 	mock := &mockTrippContract{
 		checkpointValidators: []validatorWithBlsWeight{
-			validatorWithBlsWeight{
+			{
 				Address:      common.Address{0x1},
 				BlsPublicKey: secretKeys[0].PublicKey(),
 				StakedAmount: new(big.Int).SetUint64(100),
 			},
-			validatorWithBlsWeight{
+			{
 				Address:      common.Address{0x2},
 				BlsPublicKey: secretKeys[1].PublicKey(),
 				StakedAmount: new(big.Int).SetUint64(200),
 			},
-			validatorWithBlsWeight{
+			{
 				Address:      common.Address{0x3},
 				BlsPublicKey: secretKeys[2].PublicKey(),
 				StakedAmount: new(big.Int).SetUint64(400),
 			},
 		},
 		blockProducers: []common.Address{
-			common.Address{0x11},
-			common.Address{0x22},
+			{0x11},
+			{0x22},
 		},
 	}
 	c := Consortium{
@@ -1436,6 +1436,7 @@ func TestVerifyVote(t *testing.T) {
 	testVeiryVote(t, rawdb.PathScheme)
 	testVeiryVote(t, rawdb.HashScheme)
 }
+
 func testVeiryVote(t *testing.T, scheme string) {
 	const numValidator = 3
 	var err error
@@ -1853,7 +1854,7 @@ func testUpgradeRoninTrustedOrg(t *testing.T, scheme string) {
 
 	gspec := &core.Genesis{
 		Config: &chainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			// Make proxy address non-empty to avoid being deleted
 			common.Address{0x10}: core.GenesisAccount{Balance: common.Big1},
 		},
@@ -1862,7 +1863,7 @@ func testUpgradeRoninTrustedOrg(t *testing.T, scheme string) {
 
 	mock := &mockContract{
 		validators: map[common.Address]mockValidator{
-			validatorAddr: mockValidator{
+			validatorAddr: {
 				blsPubKey: blsSecretKey.PublicKey(),
 			},
 		},
@@ -2010,7 +2011,7 @@ func testUpgradeAxieProxyCode(t *testing.T, scheme string) {
 	genesis := gspec.MustCommit(db, trie.NewDatabase(db, nil))
 	mock := &mockTrippContract{
 		checkpointValidators: []validatorWithBlsWeight{
-			validatorWithBlsWeight{
+			{
 				Address:      common.Address{0x1},
 				BlsPublicKey: blsSecret.PublicKey(),
 				StakedAmount: new(big.Int).SetUint64(100),
@@ -2134,7 +2135,7 @@ func testSystemTransactionOrder(t *testing.T, scheme string) {
 
 	gspec := &core.Genesis{
 		Config: &chainConfig,
-		Alloc: core.GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			// Make proxy address non-empty to avoid being deleted
 			common.Address{0x10}: core.GenesisAccount{Balance: common.Big1},
 		},
@@ -2143,7 +2144,7 @@ func testSystemTransactionOrder(t *testing.T, scheme string) {
 
 	mock := &mockContract{
 		validators: map[common.Address]mockValidator{
-			validatorAddr: mockValidator{
+			validatorAddr: {
 				blsPubKey: blsSecretKey.PublicKey(),
 			},
 		},
@@ -2290,7 +2291,7 @@ func testIsPeriodBlock(t *testing.T, scheme string) {
 		db:       db,
 		contract: mock,
 	}
-	var header = &types.Header{}
+	header := &types.Header{}
 
 	// header of block 200
 	// this must not a period block
@@ -2385,7 +2386,7 @@ func generateChain(
 					bg.OffsetTime(int64(dayInSeconds))
 				}
 
-				var blockExtraData = encodedExtraData
+				blockExtraData := encodedExtraData
 				if i == 199 {
 					extraData := finality.HeaderExtraData{
 						BlockProducersBitSet: 1,
@@ -2455,7 +2456,7 @@ func createNewChain(
 
 	mock := &mockContract{
 		validators: map[common.Address]mockValidator{
-			validatorAddr: mockValidator{
+			validatorAddr: {
 				blsPubKey:    blsSecretKey.PublicKey(),
 				stakedAmount: big.NewInt(10),
 			},
@@ -2588,7 +2589,6 @@ func testIsPeriodVenoki(t *testing.T, scheme string) {
 func TestIsTrippEffective(t *testing.T) {
 	testIsTrippEffective(t, rawdb.HashScheme)
 	testIsTrippEffective(t, rawdb.PathScheme)
-
 }
 
 func testIsTrippEffective(t *testing.T, scheme string) {
@@ -2635,7 +2635,7 @@ func testIsTrippEffective(t *testing.T, scheme string) {
 		contract:           mock,
 	}
 
-	var header = &types.Header{}
+	header := &types.Header{}
 
 	// header of block 30
 	header = bs[29].Header()

@@ -134,6 +134,7 @@ jobs:
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
+        id: upload-artifact
         with:
           name: coverage-report
           path: |
@@ -150,9 +151,17 @@ jobs:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('coverage.md', 'utf8');
+            
+            // Get the direct link to the artifact from the upload-artifact step
+            const artifactUrl = '${{ steps.upload-artifact.outputs.artifact-url }}';
+            
+            // Add link to the coverage report artifact
+            const reportWithLink = report + 
+              '\n\n### 📈 [Download detailed HTML coverage report](' + artifactUrl + ')';
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: report
+              body: reportWithLink
             });

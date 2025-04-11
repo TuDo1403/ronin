@@ -40,8 +40,8 @@ import (
 )
 
 type Prestate struct {
-	Env stEnv             `json:"env"`
-	Pre core.GenesisAlloc `json:"pre"`
+	Env stEnv              `json:"env"`
+	Pre types.GenesisAlloc `json:"pre"`
 }
 
 // ExecutionResult contains the execution status after running a state test, any
@@ -97,8 +97,8 @@ type rejectedTx struct {
 // Apply applies a set of transactions to a pre-state
 func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 	txs types.Transactions, miningReward int64,
-	getTracerFn func(txIndex int, txHash common.Hash) (tracer vm.EVMLogger, err error)) (*state.StateDB, *ExecutionResult, error) {
-
+	getTracerFn func(txIndex int, txHash common.Hash) (tracer vm.EVMLogger, err error),
+) (*state.StateDB, *ExecutionResult, error) {
 	// Capture errors for BLOCKHASH operation, if we haven't been supplied the
 	// required blockhashes
 	var hashError error
@@ -208,8 +208,8 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 			receipt.Logs = statedb.GetLogs(tx.Hash(), blockHash)
 			receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 			// These three are non-consensus fields:
-			//receipt.BlockHash
-			//receipt.BlockNumber
+			// receipt.BlockHash
+			// receipt.BlockNumber
 			receipt.TransactionIndex = uint(txIndex)
 			receipts = append(receipts, receipt)
 		}
@@ -267,7 +267,7 @@ func (pre *Prestate) Apply(vmConfig vm.Config, chainConfig *params.ChainConfig,
 	return statedb, execRs, nil
 }
 
-func MakePreState(db ethdb.Database, accounts core.GenesisAlloc) *state.StateDB {
+func MakePreState(db ethdb.Database, accounts types.GenesisAlloc) *state.StateDB {
 	sdb := state.NewDatabaseWithConfig(db, &trie.Config{Preimages: true})
 	statedb, _ := state.New(common.Hash{}, sdb, nil)
 	for addr, a := range accounts {
@@ -296,7 +296,8 @@ func rlpHash(x interface{}) (h common.Hash) {
 // parent timestamp + difficulty.
 // Note: this method only works for ethash engine.
 func calcDifficulty(config *params.ChainConfig, number, currentTime, parentTime uint64,
-	parentDifficulty *big.Int, parentUncleHash common.Hash) *big.Int {
+	parentDifficulty *big.Int, parentUncleHash common.Hash,
+) *big.Int {
 	uncleHash := parentUncleHash
 	if uncleHash == (common.Hash{}) {
 		uncleHash = types.EmptyUncleHash

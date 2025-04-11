@@ -1227,7 +1227,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		// a background routine to re-indexed all indices in [ancients - txlookupLimit, ancients)
 		// range. In this case, all tx indices of newly imported blocks should be
 		// generated.
-		var batch = bc.db.NewBatch()
+		batch := bc.db.NewBatch()
 		for i, block := range blockChain {
 			if bc.txLookupLimit == 0 || ancientLimit <= bc.txLookupLimit || block.NumberU64() >= ancientLimit-bc.txLookupLimit {
 				rawdb.WriteTxLookupEntriesByBlock(batch, block)
@@ -1474,7 +1474,6 @@ func (bc *BlockChain) writeBlockWithoutState(
 	td *big.Int,
 	sidecars []*types.BlobTxSidecar,
 ) (err error) {
-
 	if bc.insertStopped() {
 		return errInsertionInterrupted
 	}
@@ -2520,7 +2519,7 @@ func (bc *BlockChain) maintainTxIndex(ancients uint64) {
 	// need to reindex all necessary transactions before starting to process any
 	// pruning requests.
 	if ancients > 0 {
-		var from = uint64(0)
+		from := uint64(0)
 		if bc.txLookupLimit != 0 && ancients > bc.txLookupLimit {
 			from = ancients - bc.txLookupLimit
 		}

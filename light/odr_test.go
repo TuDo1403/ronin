@@ -255,7 +255,7 @@ func testChainOdr(t *testing.T, protocol int, fn odrTestFn) {
 		ldb   = rawdb.NewMemoryDatabase()
 		gspec = core.Genesis{
 			Config:  params.TestChainConfig,
-			Alloc:   core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+			Alloc:   types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		genesis = gspec.MustCommit(sdb, trie.NewDatabase(sdb, nil))

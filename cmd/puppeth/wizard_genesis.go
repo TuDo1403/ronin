@@ -31,6 +31,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -42,7 +43,7 @@ func (w *wizard) makeGenesis() {
 		Timestamp:  uint64(time.Now().Unix()),
 		GasLimit:   4700000,
 		Difficulty: big.NewInt(524288),
-		Alloc:      make(core.GenesisAlloc),
+		Alloc:      make(types.GenesisAlloc),
 		Config: &params.ChainConfig{
 			HomesteadBlock:      big.NewInt(0),
 			EIP150Block:         big.NewInt(0),
@@ -255,7 +256,7 @@ func (w *wizard) manageGenesis() {
 		fmt.Printf("  Will create %s.json, %s-aleth.json, %s-harmony.json, %s-parity.json\n", w.network, w.network, w.network, w.network)
 
 		folder := w.readDefaultString(".")
-		if err := os.MkdirAll(folder, 0755); err != nil {
+		if err := os.MkdirAll(folder, 0o755); err != nil {
 			log.Error("Failed to create spec folder", "folder", folder, "err", err)
 			return
 		}
@@ -263,7 +264,7 @@ func (w *wizard) manageGenesis() {
 
 		// Export the native genesis spec used by puppeth and Geth
 		gethJson := filepath.Join(folder, fmt.Sprintf("%s.json", w.network))
-		if err := ioutil.WriteFile(gethJson, out, 0644); err != nil {
+		if err := ioutil.WriteFile(gethJson, out, 0o644); err != nil {
 			log.Error("Failed to save genesis file", "err", err)
 			return
 		}
@@ -305,7 +306,7 @@ func saveGenesis(folder, network, client string, spec interface{}) {
 	path := filepath.Join(folder, fmt.Sprintf("%s-%s.json", network, client))
 
 	out, _ := json.MarshalIndent(spec, "", "  ")
-	if err := ioutil.WriteFile(path, out, 0644); err != nil {
+	if err := ioutil.WriteFile(path, out, 0o644); err != nil {
 		log.Error("Failed to save genesis file", "client", client, "err", err)
 		return
 	}

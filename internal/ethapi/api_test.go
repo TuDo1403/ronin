@@ -136,7 +136,8 @@ func allTransactionTypes(addr common.Address, config *params.ChainConfig) []txDa
 				"r": "0xbc85e96592b95f7160825d837abb407f009df9ebe8f1b9158a4b8dd093377f75",
 				"s": "0x1b55ea3af5574c536967b039ba6999ef6c89cf22fc04bcb296e0e8b0b9b576f5"
 				}`,
-		}, {
+		},
+		{
 			Tx: &types.LegacyTx{
 				Nonce:    5,
 				GasPrice: big.NewInt(6),
@@ -213,7 +214,8 @@ func allTransactionTypes(addr common.Address, config *params.ChainConfig) []txDa
 				"s": "0x28573161d1f9472fa0fd4752533609e72f06414f7ab5588699a7141f65d2abf"
 				}`,
 			// "yParity": "0x0"
-		}, {
+		},
+		{
 			Tx: &types.AccessListTx{
 				ChainID:  config.ChainID,
 				Nonce:    5,
@@ -258,7 +260,8 @@ func allTransactionTypes(addr common.Address, config *params.ChainConfig) []txDa
 				"r": "0x542981b5130d4613897fbab144796cb36d3cb3d7807d47d9c7f89ca7745b085c",
 				"s": "0x7425b9dd6c5deaa42e4ede35d0c4570c4624f68c28d812c10d806ffdf86ce63"
 				}`,
-		}, {
+		},
+		{
 			Tx: &types.DynamicFeeTx{
 				ChainID:   config.ChainID,
 				Nonce:     5,
@@ -306,7 +309,8 @@ func allTransactionTypes(addr common.Address, config *params.ChainConfig) []txDa
 				"r": "0x3b167e05418a8932cd53d7578711fe1a76b9b96c48642402bb94978b7a107e80",
 				"s": "0x22f98a332d15ea2cc80386c1ebaa31b0afebfa79ebc7d039a1e0074418301fef"
 				}`,
-		}, {
+		},
+		{
 			Tx: &types.DynamicFeeTx{
 				ChainID:    config.ChainID,
 				Nonce:      5,
@@ -414,17 +418,15 @@ func newTestAccountManager(t *testing.T) (*accounts.Manager, accounts.Account) {
 }
 
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, engine consensus.Engine, generator func(i int, b *core.BlockGen)) *testBackend {
-	var (
-		cacheConfig = &core.CacheConfig{
-			TrieCleanLimit:    256,
-			TrieDirtyLimit:    256,
-			TrieTimeLimit:     5 * time.Minute,
-			SnapshotLimit:     0,
-			TrieDirtyDisabled: true, // Archive mode
-		}
-	)
+	cacheConfig := &core.CacheConfig{
+		TrieCleanLimit:    256,
+		TrieDirtyLimit:    256,
+		TrieTimeLimit:     5 * time.Minute,
+		SnapshotLimit:     0,
+		TrieDirtyDisabled: true, // Archive mode
+	}
 	accman, acc := newTestAccountManager(t)
-	gspec.Alloc[acc.Address] = core.GenesisAccount{Balance: big.NewInt(params.Ether)}
+	gspec.Alloc[acc.Address] = types.Account{Balance: big.NewInt(params.Ether)}
 	// Generate blocks for testing
 	db, blocks, _ := core.GenerateChainWithGenesis(gspec, engine, n, generator)
 	txlookupLimit := uint64(0)
@@ -448,9 +450,11 @@ func (b testBackend) SyncProgress() ethereum.SyncProgress { return ethereum.Sync
 func (b testBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
 	return big.NewInt(0), nil
 }
+
 func (b testBackend) FeeHistory(ctx context.Context, blockCount int, lastBlock rpc.BlockNumber, rewardPercentiles []float64) (*big.Int, [][]*big.Int, []*big.Int, []float64, []*big.Int, []float64, error) {
 	return nil, nil, nil, nil, nil, nil, nil
 }
+
 func (b testBackend) BlobBaseFee(ctx context.Context) *big.Int {
 	return new(big.Int)
 }
@@ -471,9 +475,11 @@ func (b testBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber)
 	}
 	return b.chain.GetHeaderByNumber(uint64(number)), nil
 }
+
 func (b testBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
 	return b.chain.GetHeaderByHash(hash), nil
 }
+
 func (b testBackend) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return b.HeaderByNumber(ctx, blockNr)
@@ -495,9 +501,11 @@ func (b testBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) 
 	}
 	return b.chain.GetBlockByNumber(uint64(number)), nil
 }
+
 func (b testBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
 	return b.chain.GetBlockByHash(hash), nil
 }
+
 func (b testBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return b.BlockByNumber(ctx, blockNr)
@@ -507,9 +515,11 @@ func (b testBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.
 	}
 	panic("unknown type rpc.BlockNumberOrHash")
 }
+
 func (b testBackend) GetBody(ctx context.Context, hash common.Hash, number rpc.BlockNumber) (*types.Body, error) {
 	return b.chain.GetBlock(hash, uint64(number.Int64())).Body(), nil
 }
+
 func (b testBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
 	var (
 		header *types.Header
@@ -532,6 +542,7 @@ func (b testBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.Bloc
 	stateDb, err := b.chain.StateAt(header.Root)
 	return stateDb, header, err
 }
+
 func (b testBackend) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return b.StateAndHeaderByNumber(ctx, blockNr)
@@ -547,12 +558,14 @@ func (b testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.R
 	receipts := rawdb.ReadReceipts(b.db, hash, header.Number.Uint64(), b.chain.Config())
 	return receipts, nil
 }
+
 func (b testBackend) GetTd(ctx context.Context, hash common.Hash) *big.Int {
 	if b.pending != nil && hash == b.pending.Hash() {
 		return nil
 	}
 	return big.NewInt(1)
 }
+
 func (b testBackend) GetEVM(ctx context.Context, msg core.Message, state *state.StateDB, header *types.Header, vmConfig *vm.Config, blockContext *vm.BlockContext) (*vm.EVM, func() error, error) {
 	vmError := func() error { return nil }
 	if vmConfig == nil {
@@ -565,18 +578,23 @@ func (b testBackend) GetEVM(ctx context.Context, msg core.Message, state *state.
 	}
 	return vm.NewEVM(context, txContext, state, b.chain.Config(), *vmConfig), vmError, nil
 }
+
 func (b testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeChainSideEvent(ch chan<- core.ChainSideEvent) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SendTx(ctx context.Context, signedTx *types.Transaction) error {
 	panic("implement me")
 }
+
 func (b testBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
 	tx, blockHash, blockNumber, index := rawdb.ReadTransaction(b.db, txHash)
 	return tx, blockHash, blockNumber, index, nil
@@ -590,9 +608,11 @@ func (b testBackend) Stats() (pending int, queued int) { panic("implement me") }
 func (b testBackend) TxPoolContent() (map[common.Address][]*types.Transaction, map[common.Address][]*types.Transaction) {
 	panic("implement me")
 }
+
 func (b testBackend) TxPoolContentFrom(addr common.Address) ([]*types.Transaction, []*types.Transaction) {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeNewTxsEvent(events chan<- core.NewTxsEvent) event.Subscription {
 	panic("implement me")
 }
@@ -601,21 +621,27 @@ func (b testBackend) Engine() consensus.Engine         { return b.chain.Engine()
 func (b testBackend) GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error) {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeReorgEvent(ch chan<- core.ReorgEvent) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeInternalTransactionEvent(ch chan<- []*types.InternalTransaction) event.Subscription {
 	panic("implement me")
 }
+
 func (b testBackend) SubscribeDirtyAccountEvent(ch chan<- []*types.DirtyStateAccount) event.Subscription {
 	panic("implement me")
 }
@@ -627,9 +653,11 @@ func (b testBackend) ServiceFilter(ctx context.Context, session *bloombits.Match
 func (b testBackend) BlobSidecarsByHash(ctx context.Context, hash common.Hash) (types.BlobSidecars, error) {
 	panic("implement me")
 }
+
 func (b testBackend) BlobSidecarsByNumber(ctx context.Context, number rpc.BlockNumber) (types.BlobSidecars, error) {
 	panic("implement me")
 }
+
 func (b testBackend) BlobSidecarsByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (types.BlobSidecars, error) {
 	panic("implement me")
 }
@@ -641,7 +669,7 @@ func TestEstimateGas(t *testing.T) {
 		accounts = newAccounts(2)
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -657,7 +685,7 @@ func TestEstimateGas(t *testing.T) {
 		tx, _ := types.SignTx(types.NewTx(&types.LegacyTx{Nonce: uint64(i), To: &accounts[1].addr, Value: big.NewInt(1000), Gas: params.TxGas, GasPrice: b.BaseFee(), Data: nil}), signer, accounts[0].key)
 		b.AddTx(tx)
 	}))
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber rpc.BlockNumber
 		call        TransactionArgs
 		overrides   StateOverride
@@ -756,7 +784,7 @@ func TestCall(t *testing.T) {
 		accounts = newAccounts(3)
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[2].addr: {Balance: big.NewInt(params.Ether)},
@@ -773,7 +801,7 @@ func TestCall(t *testing.T) {
 		b.AddTx(tx)
 	}))
 	randomAccounts := newAccounts(3)
-	var testSuite = []struct {
+	testSuite := []struct {
 		blockNumber    rpc.BlockNumber
 		overrides      StateOverride
 		call           TransactionArgs
@@ -1044,7 +1072,7 @@ func TestFillBlobTransaction(t *testing.T) {
 		to       = accounts[1].addr
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -1274,7 +1302,7 @@ func TestBlobTransactionApi(t *testing.T) {
 		accounts = newAccounts(2)
 		genesis  = &core.Genesis{
 			Config: params.TestChainConfig,
-			Alloc: core.GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				accounts[0].addr: {Balance: big.NewInt(params.Ether)},
 				accounts[1].addr: {Balance: big.NewInt(params.Ether)},
 			},

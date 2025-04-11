@@ -52,8 +52,10 @@ func (self *testTxRelay) Discard(hashes []common.Hash) {
 	self.discard <- len(hashes)
 }
 
-const poolTestTxs = 1000
-const poolTestBlocks = 100
+const (
+	poolTestTxs    = 1000
+	poolTestBlocks = 100
+)
 
 // test tx 0..n-1
 var testTx [poolTestTxs]*types.Transaction
@@ -86,7 +88,7 @@ func TestTxPool(t *testing.T) {
 		ldb   = rawdb.NewMemoryDatabase()
 		gspec = core.Genesis{
 			Config:  params.TestChainConfig,
-			Alloc:   core.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
+			Alloc:   types.GenesisAlloc{testBankAddress: {Balance: testBankFunds}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		genesis = gspec.MustCommit(sdb, trie.NewDatabase(sdb, nil))

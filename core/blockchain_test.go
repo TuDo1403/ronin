@@ -230,10 +230,12 @@ func TestExtendCanonicalHeaders(t *testing.T) {
 	testExtendCanonical(t, false, rawdb.HashScheme)
 	testExtendCanonical(t, false, rawdb.PathScheme)
 }
+
 func TestExtendCanonicalBlocks(t *testing.T) {
 	testExtendCanonical(t, true, rawdb.HashScheme)
 	testExtendCanonical(t, true, rawdb.PathScheme)
 }
+
 func testExtendCanonical(t *testing.T, full bool, scheme string) {
 	length := 5
 
@@ -263,6 +265,7 @@ func TestShorterForkHeaders(t *testing.T) {
 	testShorterFork(t, false, rawdb.HashScheme)
 	testShorterFork(t, false, rawdb.PathScheme)
 }
+
 func TestShorterForkBlocks(t *testing.T) {
 	testShorterFork(t, true, rawdb.HashScheme)
 	testShorterFork(t, true, rawdb.PathScheme)
@@ -299,6 +302,7 @@ func TestLongerForkHeaders(t *testing.T) {
 	testLongerFork(t, false, rawdb.HashScheme)
 	testLongerFork(t, false, rawdb.PathScheme)
 }
+
 func TestLongerForkBlocks(t *testing.T) {
 	testLongerFork(t, true, rawdb.HashScheme)
 	testLongerFork(t, true, rawdb.PathScheme)
@@ -335,6 +339,7 @@ func TestEqualForkHeaders(t *testing.T) {
 	testEqualFork(t, false, rawdb.HashScheme)
 	testEqualFork(t, false, rawdb.PathScheme)
 }
+
 func TestEqualForkBlocks(t *testing.T) {
 	testEqualFork(t, true, rawdb.HashScheme)
 	testEqualFork(t, true, rawdb.PathScheme)
@@ -370,6 +375,7 @@ func TestBrokenHeaderChain(t *testing.T) {
 	testBrokenChain(t, false, rawdb.HashScheme)
 	testBrokenChain(t, false, rawdb.PathScheme)
 }
+
 func TestBrokenBlockChain(t *testing.T) {
 	testBrokenChain(t, true, rawdb.HashScheme)
 	testBrokenChain(t, true, rawdb.PathScheme)
@@ -403,6 +409,7 @@ func TestReorgLongHeaders(t *testing.T) {
 	testReorgLong(t, false, rawdb.HashScheme)
 	testReorgLong(t, false, rawdb.PathScheme)
 }
+
 func TestReorgLongBlocks(t *testing.T) {
 	testReorgLong(t, true, rawdb.HashScheme)
 	testReorgLong(t, true, rawdb.PathScheme)
@@ -418,6 +425,7 @@ func TestReorgShortHeaders(t *testing.T) {
 	testReorgShort(t, false, rawdb.HashScheme)
 	testReorgShort(t, false, rawdb.PathScheme)
 }
+
 func TestReorgShortBlocks(t *testing.T) {
 	testReorgShort(t, true, rawdb.HashScheme)
 	testReorgShort(t, true, rawdb.PathScheme)
@@ -512,6 +520,7 @@ func TestBadHeaderHashes(t *testing.T) {
 	testBadHashes(t, false, rawdb.HashScheme)
 	testBadHashes(t, false, rawdb.PathScheme)
 }
+
 func TestBadBlockHashes(t *testing.T) {
 	testBadHashes(t, true, rawdb.HashScheme)
 	testBadHashes(t, true, rawdb.PathScheme)
@@ -552,6 +561,7 @@ func TestReorgBadHeaderHashes(t *testing.T) {
 	testReorgBadHashes(t, false, rawdb.HashScheme)
 	testReorgBadHashes(t, false, rawdb.PathScheme)
 }
+
 func TestReorgBadBlockHashes(t *testing.T) {
 	testReorgBadHashes(t, true, rawdb.HashScheme)
 	testReorgBadHashes(t, true, rawdb.PathScheme)
@@ -614,6 +624,7 @@ func TestHeadersInsertNonceError(t *testing.T) {
 	testInsertNonceError(t, false, rawdb.HashScheme)
 	testInsertNonceError(t, false, rawdb.PathScheme)
 }
+
 func TestBlocksInsertNonceError(t *testing.T) {
 	testInsertNonceError(t, true, rawdb.HashScheme)
 	testInsertNonceError(t, true, rawdb.PathScheme)
@@ -687,7 +698,7 @@ func testFastVsFullChains(t *testing.T, scheme string) {
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
 			Config:  params.TestChainConfig,
-			Alloc:   GenesisAlloc{address: {Balance: funds}},
+			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		triedb  = trie.NewDatabase(gendb, nil)
@@ -830,7 +841,7 @@ func testLightVsFastVsFullChainHeads(t *testing.T, scheme string) {
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
 			Config:  params.TestChainConfig,
-			Alloc:   GenesisAlloc{address: {Balance: funds}},
+			Alloc:   types.GenesisAlloc{address: {Balance: funds}},
 			BaseFee: big.NewInt(params.InitialBaseFee),
 		}
 		triedb  = trie.NewDatabase(gendb, nil)
@@ -960,7 +971,7 @@ func testChainTxReorgs(t *testing.T, scheme string) {
 		gspec   = &Genesis{
 			Config:   params.TestChainConfig,
 			GasLimit: 3141592,
-			Alloc: GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				addr1: {Balance: big.NewInt(1000000000000000)},
 				addr2: {Balance: big.NewInt(1000000000000000)},
 				addr3: {Balance: big.NewInt(1000000000000000)},
@@ -1219,7 +1230,6 @@ func testSideLogRebirth(t *testing.T, scheme string) {
 	chain, _ := GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 2, func(i int, gen *BlockGen) {
 		if i == 1 {
 			gen.OffsetTime(-9) // higher block difficulty
-
 		}
 	}, true)
 	if _, err := blockchain.InsertChain(chain, nil); err != nil {
@@ -1280,7 +1290,7 @@ func testReorgSideEvent(t *testing.T, scheme string) {
 		addr1   = crypto.PubkeyToAddress(key1.PublicKey)
 		gspec   = &Genesis{
 			Config: params.TestChainConfig,
-			Alloc:  GenesisAlloc{addr1: {Balance: big.NewInt(10000000000000000)}},
+			Alloc:  types.GenesisAlloc{addr1: {Balance: big.NewInt(10000000000000000)}},
 		}
 		triedb  = trie.NewDatabase(db, nil)
 		genesis = gspec.MustCommit(db, triedb)
@@ -1353,7 +1363,6 @@ done:
 		t.Errorf("unexpected event fired: %v", e)
 	case <-time.After(250 * time.Millisecond):
 	}
-
 }
 
 // Tests if the canonical block can be fetched from the database during chain insertion.
@@ -1537,7 +1546,7 @@ func testEIP161AccountRemoval(t *testing.T, scheme string) {
 				EIP150Block:    new(big.Int),
 				EIP158Block:    big.NewInt(2),
 			},
-			Alloc: GenesisAlloc{address: {Balance: funds}},
+			Alloc: types.GenesisAlloc{address: {Balance: funds}},
 		}
 		triedb  = trie.NewDatabase(db, nil)
 		genesis = gspec.MustCommit(db, triedb)
@@ -1975,7 +1984,6 @@ func testLowDiffLongChain(t *testing.T, scheme string) {
 // - A common ancestor is placed at prune-point + blocksBetweenCommonAncestorAndPruneblock
 // - The sidechain S is prepended with numCanonBlocksInSidechain blocks from the canon chain
 func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommonAncestorAndPruneblock int) {
-
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
 	db := rawdb.NewMemoryDatabase()
@@ -2043,9 +2051,9 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 //
 //	^    ^    ^  pruned
 func TestPrunedImportSide(t *testing.T) {
-	//glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
-	//glogger.Verbosity(3)
-	//log.Root().SetHandler(log.Handler(glogger))
+	// glogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
+	// glogger.Verbosity(3)
+	// log.Root().SetHandler(log.Handler(glogger))
 	testSideImport(t, 3, 3)
 	testSideImport(t, 3, -3)
 	testSideImport(t, 10, 0)
@@ -2057,10 +2065,12 @@ func TestInsertKnownHeaders(t *testing.T) {
 	testInsertKnownChainData(t, "headers", rawdb.HashScheme)
 	testInsertKnownChainData(t, "headers", rawdb.PathScheme)
 }
+
 func TestInsertKnownReceiptChain(t *testing.T) {
 	testInsertKnownChainData(t, "receipts", rawdb.HashScheme)
 	testInsertKnownChainData(t, "receipts", rawdb.PathScheme)
 }
+
 func TestInsertKnownBlocks(t *testing.T) {
 	testInsertKnownChainData(t, "blocks", rawdb.HashScheme)
 	testInsertKnownChainData(t, "blocks", rawdb.PathScheme)
@@ -2467,6 +2477,7 @@ func TestTransactionIndices(t *testing.T) {
 		chain.Stop()
 	}
 }
+
 func TestSkipStaleTxIndicesInFastSync(t *testing.T) {
 	testSkipStaleTxIndicesInFastSync(t, rawdb.HashScheme)
 	testSkipStaleTxIndicesInFastSync(t, rawdb.PathScheme)
@@ -2570,7 +2581,7 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks in
 		bankFunds       = big.NewInt(100000000000000000)
 		gspec           = Genesis{
 			Config: params.TestChainConfig,
-			Alloc: GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				testBankAddress: {Balance: bankFunds},
 				common.HexToAddress("0xc0de"): {
 					Code:    []byte{0x60, 0x01, 0x50},
@@ -2617,7 +2628,6 @@ func benchmarkLargeNumberOfValueToNonexisting(b *testing.B, numTxs, numBlocks in
 		b.StopTimer()
 		if got := chain.CurrentBlock().Transactions().Len(); got != numTxs*numBlocks {
 			b.Fatalf("Transactions were not included, expected %d, got %d", numTxs*numBlocks, got)
-
 		}
 	}
 }
@@ -2755,7 +2765,7 @@ func testDeleteCreateRevert(t *testing.T, scheme string) {
 		funds   = big.NewInt(100000000000000000)
 		gspec   = &Genesis{
 			Config: params.TestChainConfig,
-			Alloc: GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				address: {Balance: funds},
 				// The address 0xAAAAA selfdestructs if called
 				aa: {
@@ -2865,7 +2875,8 @@ func testDeleteRecreateSlots(t *testing.T, scheme string) {
 	}
 	bbCode := []byte{
 		// Push initcode onto stack
-		byte(vm.PUSH1) + byte(len(initCode)-1)}
+		byte(vm.PUSH1) + byte(len(initCode)-1),
+	}
 	bbCode = append(bbCode, initCode...)
 	bbCode = append(bbCode, []byte{
 		byte(vm.PUSH1), 0x0, // memory start on stack
@@ -3085,7 +3096,8 @@ func testDeleteRecreateSlotsAcrossManyBlocks(t *testing.T, scheme string) {
 	}
 	bbCode := []byte{
 		// Push initcode onto stack
-		byte(vm.PUSH1) + byte(len(initCode)-1)}
+		byte(vm.PUSH1) + byte(len(initCode)-1),
+	}
 	bbCode = append(bbCode, initCode...)
 	bbCode = append(bbCode, []byte{
 		byte(vm.PUSH1), 0x0, // memory start on stack
@@ -3131,13 +3143,13 @@ func testDeleteRecreateSlotsAcrossManyBlocks(t *testing.T, scheme string) {
 		blocknum int
 		values   map[int]int
 	}
-	var current = &expectation{
+	current := &expectation{
 		exist:    true, // exists in genesis
 		blocknum: 0,
 		values:   map[int]int{1: 1, 2: 2},
 	}
 	var expectations []*expectation
-	var newDestruct = func(e *expectation, b *BlockGen) *types.Transaction {
+	newDestruct := func(e *expectation, b *BlockGen) *types.Transaction {
 		tx, _ := types.SignTx(types.NewTransaction(nonce, aa,
 			big.NewInt(0), 50000, b.header.BaseFee, nil), types.HomesteadSigner{}, key)
 		nonce++
@@ -3148,7 +3160,7 @@ func testDeleteRecreateSlotsAcrossManyBlocks(t *testing.T, scheme string) {
 		t.Logf("block %d; adding destruct\n", e.blocknum)
 		return tx
 	}
-	var newResurrect = func(e *expectation, b *BlockGen) *types.Transaction {
+	newResurrect := func(e *expectation, b *BlockGen) *types.Transaction {
 		tx, _ := types.SignTx(types.NewTransaction(nonce, bb,
 			big.NewInt(0), 100000, b.header.BaseFee, nil), types.HomesteadSigner{}, key)
 		nonce++
@@ -3161,7 +3173,7 @@ func testDeleteRecreateSlotsAcrossManyBlocks(t *testing.T, scheme string) {
 	}
 
 	blocks, _ := GenerateChain(&chainConfig, genesis, engine, db, 150, func(i int, b *BlockGen) {
-		var exp = new(expectation)
+		exp := new(expectation)
 		exp.blocknum = i + 1
 		exp.values = make(map[int]int)
 		for k, v := range current.values {
@@ -3191,13 +3203,13 @@ func testDeleteRecreateSlotsAcrossManyBlocks(t *testing.T, scheme string) {
 	gspec.MustCommit(diskdb, triedb)
 
 	chain, err := NewBlockChain(diskdb, DefaultCacheConfigWithScheme(scheme), gspec, nil, engine, vm.Config{
-		//Debug:  true,
-		//Tracer: vm.NewJSONLogger(nil, os.Stdout),
+		// Debug:  true,
+		// Tracer: vm.NewJSONLogger(nil, os.Stdout),
 	}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
-	var asHash = func(num int) common.Hash {
+	asHash := func(num int) common.Hash {
 		return common.BytesToHash([]byte{byte(num)})
 	}
 	for i, block := range blocks {
@@ -3285,7 +3297,8 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 	}
 	bbCode := []byte{
 		// Push initcode onto stack
-		byte(vm.PUSH1) + byte(len(initCode)-1)}
+		byte(vm.PUSH1) + byte(len(initCode)-1),
+	}
 	bbCode = append(bbCode, initCode...)
 	bbCode = append(bbCode, []byte{
 		byte(vm.PUSH1), 0x0, // memory start on stack
@@ -3303,7 +3316,7 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 
 	gspec := &Genesis{
 		Config: params.TestChainConfig,
-		Alloc: GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			address: {Balance: funds},
 			// The address aa has some funds
 			aa: {Balance: big.NewInt(100000)},
@@ -3332,8 +3345,8 @@ func testInitThenFailCreateContract(t *testing.T, scheme string) {
 	triedb = trie.NewDatabase(diskdb, nil)
 	gspec.MustCommit(diskdb, triedb)
 	chain, err := NewBlockChain(diskdb, DefaultCacheConfigWithScheme(scheme), gspec, nil, engine, vm.Config{
-		//Debug:  true,
-		//Tracer: vm.NewJSONLogger(nil, os.Stdout),
+		// Debug:  true,
+		// Tracer: vm.NewJSONLogger(nil, os.Stdout),
 	}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
@@ -3385,7 +3398,7 @@ func testEIP2718Transition(t *testing.T, scheme string) {
 		funds   = big.NewInt(1000000000000000)
 		gspec   = &Genesis{
 			Config: params.TestChainConfig,
-			Alloc: GenesisAlloc{
+			Alloc: types.GenesisAlloc{
 				address: {Balance: funds},
 				// The address 0xAAAA sloads 0x00 and 0x01
 				aa: {
@@ -3442,7 +3455,6 @@ func testEIP2718Transition(t *testing.T, scheme string) {
 		vm.GasQuickStep*2 + params.WarmStorageReadCostEIP2929 + params.ColdSloadCostEIP2929
 	if block.GasUsed() != expected {
 		t.Fatalf("incorrect amount of gas spent: expected %d, got %d", expected, block.GasUsed())
-
 	}
 }
 
@@ -3682,6 +3694,7 @@ func TestSponsoredTxTransition(t *testing.T) {
 	testSponsoredTxTransition(t, rawdb.HashScheme)
 	testSponsoredTxTransition(t, rawdb.PathScheme)
 }
+
 func testSponsoredTxTransition(t *testing.T, scheme string) {
 	var chainConfig params.ChainConfig
 
@@ -3972,7 +3985,8 @@ func testTransientStorageReset(t *testing.T, scheme string) {
 		byte(vm.TSTORE),
 
 		// Get the runtime-code on the stack
-		byte(vm.PUSH32)}
+		byte(vm.PUSH32),
+	}
 	initCode = append(initCode, code...)
 	initCode = append(initCode, []byte{
 		byte(vm.PUSH1), 0x0, // offset
@@ -3983,7 +3997,7 @@ func testTransientStorageReset(t *testing.T, scheme string) {
 	}...)
 	gspec := &Genesis{
 		Config: params.TestChainConfig,
-		Alloc: GenesisAlloc{
+		Alloc: types.GenesisAlloc{
 			address: {Balance: funds},
 		},
 	}
@@ -4447,7 +4461,6 @@ func testInsertChainWithSidecars(t *testing.T, scheme string) {
 	go func() {
 		defer wg.Done()
 		t.Run("future-block-at-start", func(t *testing.T) {
-
 			// Reset database
 			db := rawdb.NewMemoryDatabase()
 			gspec.MustCommit(db, trie.NewDatabase(db, nil))
